@@ -102,8 +102,21 @@ async function createPage(space, title, content, parentId = null) {
         return res.data;
     }
     catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        throw new Error(`创建页面失败: ${message}`);
+        let errorMessage = "创建页面失败";
+        if (axios.isAxiosError(error)) {
+            const status = error.response?.status;
+            const statusText = error.response?.statusText;
+            const data = error.response?.data;
+            errorMessage += `: HTTP ${status} ${statusText}`;
+            if (data) {
+                errorMessage += `\n响应详情: ${JSON.stringify(data, null, 2)}`;
+            }
+            errorMessage += `\n请求参数: space=${space}, title=${title}, parentId=${parentId}`;
+        }
+        else {
+            errorMessage += `: ${error instanceof Error ? error.message : String(error)}`;
+        }
+        throw new Error(errorMessage);
     }
 }
 async function updatePage(page, content, title = null) {

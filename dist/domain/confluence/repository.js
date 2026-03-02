@@ -1,7 +1,6 @@
 // src/domain/confluence/repository.ts
 import { createHttpClient, createExperimentalHttpClient, getAuthHeaderValue } from "../../infrastructure/http-client.js";
 import { config } from "../../infrastructure/config.js";
-import FormData from "form-data";
 import fs from "fs";
 import path from "path";
 export class ConfluenceRepository {
@@ -100,10 +99,8 @@ export class ConfluenceRepository {
         const actualFilename = filename || path.basename(filePath);
         const fileContent = fs.readFileSync(filePath);
         const form = new FormData();
-        form.append("file", fileContent, {
-            filename: actualFilename,
-            contentType: 'application/octet-stream'
-        });
+        const blob = new Blob([fileContent], { type: 'application/octet-stream' });
+        form.append("file", blob, actualFilename);
         if (comment)
             form.append("comment", comment);
         const url = `${config.baseUrl}/rest/api/content/${pageId}/child/attachment`;
@@ -112,12 +109,12 @@ export class ConfluenceRepository {
             headers: {
                 Authorization: getAuthHeaderValue(),
                 "X-Atlassian-Token": "no-check",
-                ...form.getHeaders()
             },
-            body: form.getBuffer()
+            body: form
         });
         if (!res.ok) {
-            throw new Error(`Upload failed: HTTP ${res.status}`);
+            const errorText = await res.text().catch(() => "");
+            throw new Error(`Upload failed: HTTP ${res.status} ${res.statusText}${errorText ? ` - ${errorText}` : ""}`);
         }
         const data = await res.json();
         return data.results?.[0] || data;
@@ -125,10 +122,8 @@ export class ConfluenceRepository {
     async uploadAttachmentFromBase64(pageId, base64Content, filename, comment) {
         const buffer = Buffer.from(base64Content, "base64");
         const form = new FormData();
-        form.append("file", buffer, {
-            filename: filename,
-            contentType: 'application/octet-stream'
-        });
+        const blob = new Blob([buffer], { type: 'application/octet-stream' });
+        form.append("file", blob, filename);
         if (comment)
             form.append("comment", comment);
         const url = `${config.baseUrl}/rest/api/content/${pageId}/child/attachment`;
@@ -137,12 +132,12 @@ export class ConfluenceRepository {
             headers: {
                 Authorization: getAuthHeaderValue(),
                 "X-Atlassian-Token": "no-check",
-                ...form.getHeaders()
             },
-            body: form.getBuffer()
+            body: form
         });
         if (!res.ok) {
-            throw new Error(`Upload failed: HTTP ${res.status}`);
+            const errorText = await res.text().catch(() => "");
+            throw new Error(`Upload failed: HTTP ${res.status} ${res.statusText}${errorText ? ` - ${errorText}` : ""}`);
         }
         const data = await res.json();
         return data.results?.[0] || data;

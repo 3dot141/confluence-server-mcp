@@ -12,7 +12,6 @@ import {
   RestrictionType,
 } from "./types.js";
 import { AxiosInstance } from "axios";
-import FormData from "form-data";
 import fs from "fs";
 import path from "path";
 
@@ -132,10 +131,8 @@ export class ConfluenceRepository {
     const fileContent = fs.readFileSync(filePath);
     
     const form = new FormData();
-    form.append("file", fileContent, {
-      filename: actualFilename,
-      contentType: 'application/octet-stream'
-    });
+    const blob = new Blob([fileContent], { type: 'application/octet-stream' });
+    form.append("file", blob, actualFilename);
     if (comment) form.append("comment", comment);
 
     const url = `${config.baseUrl}/rest/api/content/${pageId}/child/attachment`;
@@ -144,13 +141,13 @@ export class ConfluenceRepository {
       headers: {
         Authorization: getAuthHeaderValue(),
         "X-Atlassian-Token": "no-check",
-        ...form.getHeaders()
       },
-      body: form.getBuffer() as unknown as BodyInit
+      body: form as unknown as BodyInit
     });
 
     if (!res.ok) {
-      throw new Error(`Upload failed: HTTP ${res.status}`);
+      const errorText = await res.text().catch(() => "");
+      throw new Error(`Upload failed: HTTP ${res.status} ${res.statusText}${errorText ? ` - ${errorText}` : ""}`);
     }
 
     const data = await res.json();
@@ -166,10 +163,8 @@ export class ConfluenceRepository {
     const buffer = Buffer.from(base64Content, "base64");
     
     const form = new FormData();
-    form.append("file", buffer, {
-      filename: filename,
-      contentType: 'application/octet-stream'
-    });
+    const blob = new Blob([buffer], { type: 'application/octet-stream' });
+    form.append("file", blob, filename);
     if (comment) form.append("comment", comment);
 
     const url = `${config.baseUrl}/rest/api/content/${pageId}/child/attachment`;
@@ -178,13 +173,13 @@ export class ConfluenceRepository {
       headers: {
         Authorization: getAuthHeaderValue(),
         "X-Atlassian-Token": "no-check",
-        ...form.getHeaders()
       },
-      body: form.getBuffer() as unknown as BodyInit
+      body: form as unknown as BodyInit
     });
 
     if (!res.ok) {
-      throw new Error(`Upload failed: HTTP ${res.status}`);
+      const errorText = await res.text().catch(() => "");
+      throw new Error(`Upload failed: HTTP ${res.status} ${res.statusText}${errorText ? ` - ${errorText}` : ""}`);
     }
 
     const data = await res.json();
