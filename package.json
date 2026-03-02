@@ -1,0 +1,30 @@
+{
+  "name": "confluence-mcp-server",
+  "version": "2.0.0",
+  "description": "Layered architecture MCP server for Confluence with Markdown publishing",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
+    "mcp": "npm run -s build && node dist/main.js",
+    "test": "node dev/test-connection.js"
+  },
+  "bin": {
+    "confluence-mcp": "./dist/main.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.25.1",
+    "axios": "^1.6.0",
+    "dotenv": "^16.4.0",
+    "express": "^5.2.1",
+    "form-data": "^4.0.5"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}
