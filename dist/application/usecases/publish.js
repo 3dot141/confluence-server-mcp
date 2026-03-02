@@ -1,7 +1,6 @@
 // src/application/usecases/publish.ts
 import { confluenceRepository } from "../../domain/confluence/repository.js";
 import { MarkdownToConfluenceConverter, extractImagesFromMarkdown, } from "../../domain/markdown/index.js";
-import { easyHeadingFreeMacro } from "../../domain/markdown/macros.js";
 import { config } from "../../infrastructure/config.js";
 export class PublishUseCases {
     async publishMarkdown(dto) {
@@ -53,13 +52,13 @@ export class PublishUseCases {
                 imageMapping[image.originalPath] = result.title;
             }
         }
-        // 6. Convert markdown and prepend TOC macro
+        // 6. Convert markdown with TOC macro
         const converter = new MarkdownToConfluenceConverter({
+            addTocMacro: true,
             imageMapping,
             basePath: dto.basePath,
         });
-        const convertedContent = converter.convert(dto.markdown);
-        const content = easyHeadingFreeMacro() + "\n\n" + convertedContent;
+        const content = converter.convert(dto.markdown);
         // 7. Update page with content
         if (operation === "updated") {
             page = await confluenceRepository.updatePage({

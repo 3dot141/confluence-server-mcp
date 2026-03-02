@@ -45,13 +45,8 @@ export function note(content: string): string {
   return `<ac:structured-macro ac:name="note"><ac:rich-text-body><p>${escapeXml(content)}</p></ac:rich-text-body></ac:structured-macro>`;
 }
 
-// TOC macro
+// TOC macro (using easy-heading-free for better navigation)
 export function tocMacro(): string {
-  return `<ac:structured-macro ac:name="toc"></ac:structured-macro>`;
-}
-
-// Easy Heading Free macro (for table of contents)
-export function easyHeadingFreeMacro(): string {
   return `<ac:structured-macro ac:name="easy-heading-free">
   <ac:parameter ac:name="navigationExpandOption">collapse-all-but-headings-1</ac:parameter>
   <ac:rich-text-body/>
