@@ -128,6 +128,78 @@ describe('MarkdownToConfluenceConverter - List Conversion', () => {
     });
   });
 
+  describe('待办事项列表（复选框）', () => {
+    it('应该转换未完成的待办事项', () => {
+      const markdown = `- [ ] 任务一
+- [ ] 任务二
+- [ ] 任务三`;
+
+      const result = converter.convert(markdown);
+
+      expect(result).toContain('<ac:task-list>');
+      expect(result).toContain('<ac:task>');
+      expect(result).toContain('<ac:task-status>incomplete</ac:task-status>');
+      expect(result).toContain('<ac:task-body>任务一</ac:task-body>');
+      expect(result).toContain('<ac:task-body>任务二</ac:task-body>');
+      expect(result).toContain('<ac:task-body>任务三</ac:task-body>');
+      expect(result).toContain('</ac:task>');
+      expect(result).toContain('</ac:task-list>');
+    });
+
+    it('应该转换已完成的待办事项', () => {
+      const markdown = `- [x] 已完成任务一
+- [x] 已完成任务二`;
+
+      const result = converter.convert(markdown);
+
+      expect(result).toContain('<ac:task-status>complete</ac:task-status>');
+      expect(result).toContain('<ac:task-body>已完成任务一</ac:task-body>');
+      expect(result).toContain('<ac:task-body>已完成任务二</ac:task-body>');
+    });
+
+    it('应该混合处理完成和未完成的待办事项', () => {
+      const markdown = `- [ ] 未完成任务
+- [x] 已完成任务
+- [ ] 另一个未完成任务`;
+
+      const result = converter.convert(markdown);
+
+      // Count occurrences
+      const incompleteCount = (result.match(/<ac:task-status>incomplete<\/ac:task-status>/g) || []).length;
+      const completeCount = (result.match(/<ac:task-status>complete<\/ac:task-status>/g) || []).length;
+
+      expect(incompleteCount).toBe(2);
+      expect(completeCount).toBe(1);
+    });
+
+    it('应该在待办事项中保留内联格式', () => {
+      const markdown = `- [ ] **粗体** 任务
+- [x] *斜体* 任务`;
+
+      const result = converter.convert(markdown);
+
+      expect(result).toContain('<ac:task-body><strong>粗体</strong> 任务</ac:task-body>');
+      expect(result).toContain('<ac:task-body><em>斜体</em> 任务</ac:task-body>');
+    });
+
+    it('应该区分普通列表和待办事项列表', () => {
+      const markdown = `普通列表：
+- 项目 A
+- 项目 B
+
+待办事项：
+- [ ] 任务 A
+- [x] 任务 B`;
+
+      const result = converter.convert(markdown);
+
+      expect(result).toContain('<ul>');
+      expect(result).toContain('<li>项目 A</li>');
+      expect(result).toContain('<ac:task-list>');
+      expect(result).toContain('<ac:task-status>incomplete</ac:task-status>');
+    });
+  });
+
   describe('列表边界情况', () => {
     it('应该处理空列表', () => {
       const markdown = `一些文本
@@ -138,6 +210,7 @@ describe('MarkdownToConfluenceConverter - List Conversion', () => {
 
       expect(result).not.toContain('<ul>');
       expect(result).not.toContain('<ol>');
+      expect(result).not.toContain('<ac:task-list>');
     });
 
     it('应该处理列表后立即是代码块的情况', () => {

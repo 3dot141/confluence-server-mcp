@@ -226,10 +226,23 @@ export class MarkdownToConfluenceConverter {
     const result: string[] = [];
     let inUnorderedList = false;
     let inOrderedList = false;
+    let inTaskList = false;
     const listItems: string[] = [];
+    const taskItems: Array<{ text: string; checked: boolean }> = [];
 
     const closeList = () => {
-      if (inUnorderedList) {
+      if (inTaskList) {
+        result.push('<ac:task-list>');
+        for (const item of taskItems) {
+          result.push(`  <ac:task>
+    <ac:task-status>${item.checked ? 'complete' : 'incomplete'}</ac:task-status>
+    <ac:task-body>${item.text}</ac:task-body>
+  </ac:task>`);
+        }
+        result.push('</ac:task-list>');
+        taskItems.length = 0;
+        inTaskList = false;
+      } else if (inUnorderedList) {
         result.push("<ul>");
         for (const item of listItems) {
           result.push(`  <li>${item}</li>`);
@@ -249,17 +262,26 @@ export class MarkdownToConfluenceConverter {
     };
 
     for (const line of lines) {
+      // Match task list: - [ ] or - [x]
+      const taskMatch = line.match(/^[\s]*[-\*\+]\s+\[([\sx])\]\s*(.*)$/);
       const unorderedMatch = line.match(/^[\s]*[-\*\+]\s+(.+)$/);
       const orderedMatch = line.match(/^[\s]*\d+\.\s+(.+)$/);
 
-      if (unorderedMatch) {
-        if (inOrderedList) {
+      if (taskMatch) {
+        if (inUnorderedList || inOrderedList) {
+          closeList();
+        }
+        inTaskList = true;
+        const checked = taskMatch[1] === 'x';
+        taskItems.push({ text: taskMatch[2], checked });
+      } else if (unorderedMatch) {
+        if (inOrderedList || inTaskList) {
           closeList();
         }
         inUnorderedList = true;
         listItems.push(unorderedMatch[1]);
       } else if (orderedMatch) {
-        if (inUnorderedList) {
+        if (inUnorderedList || inTaskList) {
           closeList();
         }
         inOrderedList = true;
