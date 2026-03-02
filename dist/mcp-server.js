@@ -125,6 +125,7 @@ async function updatePage(page, content, title = null) {
             id: page.id,
             type: "page",
             title: title || page.title,
+            space: page.space,
             version: {
                 number: page.version.number + 1,
             },
@@ -138,8 +139,21 @@ async function updatePage(page, content, title = null) {
         return res.data;
     }
     catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        throw new Error(`更新页面失败: ${message}`);
+        let errorMessage = "更新页面失败";
+        if (axios.isAxiosError(error)) {
+            const status = error.response?.status;
+            const statusText = error.response?.statusText;
+            const data = error.response?.data;
+            errorMessage += `: HTTP ${status} ${statusText}`;
+            if (data) {
+                errorMessage += `\n响应详情: ${JSON.stringify(data, null, 2)}`;
+            }
+            errorMessage += `\n请求参数: pageId=${page.id}, version=${page.version.number + 1}`;
+        }
+        else {
+            errorMessage += `: ${error instanceof Error ? error.message : String(error)}`;
+        }
+        throw new Error(errorMessage);
     }
 }
 async function deletePage(pageId) {
