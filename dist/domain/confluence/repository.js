@@ -100,7 +100,10 @@ export class ConfluenceRepository {
         const actualFilename = filename || path.basename(filePath);
         const fileContent = fs.readFileSync(filePath);
         const form = new FormData();
-        form.append("file", new Uint8Array(fileContent), actualFilename);
+        form.append("file", fileContent, {
+            filename: actualFilename,
+            contentType: 'application/octet-stream'
+        });
         if (comment)
             form.append("comment", comment);
         const url = `${config.baseUrl}/rest/api/content/${pageId}/child/attachment`;
@@ -122,7 +125,10 @@ export class ConfluenceRepository {
     async uploadAttachmentFromBase64(pageId, base64Content, filename, comment) {
         const buffer = Buffer.from(base64Content, "base64");
         const form = new FormData();
-        form.append("file", new Uint8Array(buffer), filename);
+        form.append("file", buffer, {
+            filename: filename,
+            contentType: 'application/octet-stream'
+        });
         if (comment)
             form.append("comment", comment);
         const url = `${config.baseUrl}/rest/api/content/${pageId}/child/attachment`;
