@@ -2,7 +2,6 @@
 import { 
   MarkdownToConfluenceConverter, 
   MarkdownImageExtractor,
-  ConversionResult,
   ExtractionResult 
 } from '../../domain/markdown/index.js';
 
@@ -15,12 +14,6 @@ export interface ConvertMarkdownInput {
 
 export interface ConvertMarkdownOutput {
   storageFormat: string;
-  extractedImages: Array<{
-    alt: string;
-    src: string;
-    absolutePath: string;
-    type: 'local' | 'url';
-  }>;
   title?: string;
 }
 
@@ -41,12 +34,6 @@ export class ConversionUseCases {
     
     return {
       storageFormat: result.storageFormat,
-      extractedImages: result.extractedImages.map(img => ({
-        alt: img.alt,
-        src: img.src,
-        absolutePath: img.absolutePath || img.src,
-        type: img.type
-      })),
       title: result.title
     };
   }

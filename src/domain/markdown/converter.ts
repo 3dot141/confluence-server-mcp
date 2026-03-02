@@ -1,18 +1,9 @@
 // src/domain/markdown/converter.ts
-import path from "node:path";
 import { MarkdownConverterOptions } from "./types.js";
 import { codeMacro, info, warning, tip, note, tocMacro, table, escapeXml } from "./macros.js";
 
-export interface ExtractedImage {
-  alt: string;
-  src: string;
-  absolutePath?: string;
-  type: 'local' | 'url';
-}
-
 export interface ConversionResult {
   storageFormat: string;
-  extractedImages: ExtractedImage[];
   title?: string;
 }
 
@@ -31,8 +22,6 @@ export class MarkdownToConfluenceConverter {
   }
 
   convertWithMetadata(markdown: string): ConversionResult {
-    const extractedImages: ExtractedImage[] = [];
-    
     // Extract front matter and title
     const { content: contentWithoutFm, title: fmTitle } = this.extractFrontMatterWithTitle(markdown);
     
@@ -40,18 +29,11 @@ export class MarkdownToConfluenceConverter {
     const h1Title = this.extractH1Title(contentWithoutFm);
     const title = fmTitle || h1Title;
     
-    // Extract and mark images
-    const contentWithExtractedImages = this.extractAndMarkImages(
-      contentWithoutFm, 
-      extractedImages
-    );
-    
     // Perform conversion
-    const storageFormat = this.convert(contentWithExtractedImages);
+    const storageFormat = this.convert(contentWithoutFm);
     
     return {
       storageFormat,
-      extractedImages,
       title
     };
   }
@@ -79,7 +61,7 @@ export class MarkdownToConfluenceConverter {
     }
     
     const result = parts.join("\n\n");
-    return this.convertImages(result);
+    return result;
   }
 
   private extractFrontMatter(markdown: string): string {
@@ -134,10 +116,54 @@ export class MarkdownToConfluenceConverter {
     markdown = this.convertBlockquotes(markdown);
     // Convert headings
     markdown = this.convertHeadings(markdown);
+    // Convert images BEFORE inline (so they don't become links)
+    markdown = this.convertImages(markdown);
     // Convert inline
     markdown = this.convertInline(markdown);
     // Wrap paragraphs
     markdown = this.wrapParagraphs(markdown);
+    return markdown;
+  }
+
+  private convertImages(markdown: string): string {
+    const imageMapping = this.options.imageMapping || {};
+    
+    // Match ![alt](src) format - convert to Confluence attachment reference
+    markdown = markdown.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, src) => {
+      // Check if there's an image mapping for this src
+      if (imageMapping[src]) {
+        const mappedValue = imageMapping[src];
+        // If mapped value is a URL (starts with http), use ri:url
+        if (mappedValue.startsWith('http')) {
+          return `<ac:image><ri:url ri:value="${mappedValue}" /></ac:image>`;
+        }
+        // Otherwise assume it's a filename for ri:attachment
+        return `<ac:image><ri:attachment ri:filename="${mappedValue}" /></ac:image>`;
+      }
+      
+      // No mapping, extract filename from path (e.g., "./images/test.png" -> "test.png")
+      const filename = src.split('/').pop().split('\\').pop();
+      return `<ac:image><ri:attachment ri:filename="${filename}" /></ac:image>`;
+    });
+    
+    // Match ![[src]] Obsidian format
+    markdown = markdown.replace(/!\[\[([^\]]+)\]\]/g, (match, src) => {
+      // Check if there's an image mapping for this src
+      if (imageMapping[src]) {
+        const mappedValue = imageMapping[src];
+        // If mapped value is a URL (starts with http), use ri:url
+        if (mappedValue.startsWith('http')) {
+          return `<ac:image><ri:url ri:value="${mappedValue}" /></ac:image>`;
+        }
+        // Otherwise assume it's a filename for ri:attachment
+        return `<ac:image><ri:attachment ri:filename="${mappedValue}" /></ac:image>`;
+      }
+      
+      // No mapping, extract filename from path
+      const filename = src.split('/').pop().split('\\').pop();
+      return `<ac:image><ri:attachment ri:filename="${filename}" /></ac:image>`;
+    });
+    
     return markdown;
   }
 
@@ -286,61 +312,5 @@ export class MarkdownToConfluenceConverter {
   private extractH1Title(markdown: string): string | undefined {
     const match = markdown.match(/^#\s+(.+)$/m);
     return match ? match[1].trim() : undefined;
-  }
-
-  private extractAndMarkImages(
-    markdown: string, 
-    images: ExtractedImage[]
-  ): string {
-    let result = markdown;
-    
-    // Match ![alt](src) format
-    const standardPattern = /!\[([^\]]*)\]\(([^)]+)\)/g;
-    
-    result = result.replace(standardPattern, (match, alt, src) => {
-      const type = (src.startsWith('http://') || src.startsWith('https://')) 
-        ? 'url' 
-        : 'local';
-      
-      const absolutePath = type === 'local' && this.options.basePath
-        ? path.resolve(this.options.basePath, src)
-        : undefined;
-      
-      images.push({
-        alt: alt || '',
-        src,
-        absolutePath,
-        type
-      });
-      
-      // Return placeholder for later Confluence format conversion
-      return `<!--IMG:${images.length - 1}-->`;
-    });
-    
-    // Match ![[src]] Obsidian format
-    const obsidianPattern = /!\[\[([^\]]+)\]\]/g;
-    
-    result = result.replace(obsidianPattern, (match, src) => {
-      const absolutePath = this.options.basePath
-        ? path.resolve(this.options.basePath, src)
-        : undefined;
-      
-      images.push({
-        alt: '',
-        src,
-        absolutePath,
-        type: 'local'
-      });
-      
-      return `<!--IMG:${images.length - 1}-->`;
-    });
-    
-    return result;
-  }
-
-  private convertImages(markdown: string): string {
-    return markdown.replace(/<!--IMG:(\d+)-->/g, (match, index) => {
-      return `<ac:image><ri:attachment ri:filename="IMG${index}" /></ac:image>`;
-    });
   }
 }

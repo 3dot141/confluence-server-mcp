@@ -195,48 +195,77 @@ npm run build
 
 ### 典型发布流程
 
-```javascript
-// 1. 转换 Markdown
-const { storageFormat, extractedImages, title } = 
-  await confluence_convert_markdown_to_storage({
-    markdown: "# Hello\n\n![img](./test.png)",
-    addToc: true
-  });
+**完整流程（含图片）**
 
-// 2. 创建或更新页面
-await confluence_upsert_page({
-  space: "DEV",
-  title: title || "My Page",
-  content: storageFormat
+```javascript
+// 1. 提取图片
+const { images } = await confluence_extract_images_from_markdown({
+  markdown: "# Hello\n\n![img](./test.png)"
 });
 
-// 3. 上传本地图片（如有）
-for (const img of extractedImages) {
+// 2. 创建草稿页面（仅占位，后续会更新）
+const result = await confluence_create_page({
+  space: "DEV",
+  title: "My Page",
+  content: "<p>Loading...</p>"  // 临时内容
+});
+
+// 3. 上传本地图片
+const imageMapping = {};
+for (const img of images) {
   if (img.type === "local") {
-    await confluence_upload_attachment({
+    const attachment = await confluence_upload_attachment({
       pageId: result.pageId,
       filePath: img.absolutePath
     });
+    // 保存映射: 原路径 -> 附件文件名
+    imageMapping[img.src] = img.src.split('/').pop();
   }
 }
+
+// 4. 转换 Markdown（使用 imageMapping）
+const { storageFormat, title } = await confluence_convert_markdown_to_storage({
+  markdown: "# Hello\n\n![img](./test.png)",
+  addToc: true,
+  imageMapping: imageMapping  // 传入映射关系
+});
+
+// 5. 更新页面为最终内容
+await confluence_update_page({
+  pageId: result.pageId,
+  title: title || "My Page",
+  content: storageFormat
+});
 ```
 
 ### 转换步骤详解
 
-1. **`confluence_convert_markdown_to_storage`**
-   - 提取 Front Matter（从 `---` 块中提取 title）
-   - 提取图片路径（标准 Markdown 和 Obsidian `![[image.png]]` 语法）
-   - Markdown → Confluence Storage Format 转换
-   - 返回转换后的内容、图片列表、标题
+**完整流程: 提取 → 创建草稿 → 上传 → 转换 → 更新**
 
-2. **`confluence_extract_images_from_markdown`**（可选）
-   - 独立提取图片路径
-   - 解析相对路径为绝对路径
-   - 区分本地图片和 URL 图片
+1. **`confluence_extract_images_from_markdown`**
+   - **先执行** - 提取 Markdown 中的所有图片路径
+   - 解析相对路径为绝对路径（用于后续上传）
+   - 返回图片列表，包含 `src`（原始路径）和 `absolutePath`（绝对路径）
 
-3. **API 工具创建页面**
-   - 使用转换后的 `storageFormat` 作为 content
-   - 使用提取的 `title` 或使用自定义标题
+2. **`confluence_create_page`**
+   - 创建草稿页面（先用占位内容）
+   - 获取 pageId 用于后续上传和更新
+
+3. **`confluence_upload_attachment`**
+   - 上传步骤1中提取的本地图片
+   - 获取上传后的附件信息
+
+4. **`confluence_convert_markdown_to_storage`**
+   - 提取 Front Matter 中的 title
+   - 使用 `imageMapping` 将原图片路径映射为附件引用
+   - **图片处理**: 
+     - 无映射: `![alt](./path/to/image.png)` → `<ac:image><ri:attachment ri:filename="image.png" /></ac:image>`
+     - 有映射: 使用 `imageMapping[src]` 作为文件名或 URL
+   - 返回 `storageFormat`（转换后的内容）和 `title`
+
+5. **`confluence_update_page`**
+   - 使用转换后的 `storageFormat` 更新页面内容
+   - 此时附件已上传，图片可正常显示
 
 **支持的 Markdown 语法：**
 - Front matter (YAML)
