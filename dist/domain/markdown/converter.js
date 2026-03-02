@@ -88,6 +88,8 @@ export class MarkdownToConfluenceConverter {
         markdown = this.convertBlockquotes(markdown);
         // Convert headings
         markdown = this.convertHeadings(markdown);
+        // Convert lists BEFORE inline
+        markdown = this.convertLists(markdown);
         // Convert images BEFORE inline (so they don't become links)
         markdown = this.convertImages(markdown);
         // Convert inline
@@ -191,6 +193,57 @@ export class MarkdownToConfluenceConverter {
             markdown = markdown.replace(pattern, `<h${level}>$1</h${level}>`);
         }
         return markdown;
+    }
+    convertLists(markdown) {
+        const lines = markdown.split("\n");
+        const result = [];
+        let inUnorderedList = false;
+        let inOrderedList = false;
+        const listItems = [];
+        const closeList = () => {
+            if (inUnorderedList) {
+                result.push("<ul>");
+                for (const item of listItems) {
+                    result.push(`  <li>${item}</li>`);
+                }
+                result.push("</ul>");
+                listItems.length = 0;
+                inUnorderedList = false;
+            }
+            else if (inOrderedList) {
+                result.push("<ol>");
+                for (const item of listItems) {
+                    result.push(`  <li>${item}</li>`);
+                }
+                result.push("</ol>");
+                listItems.length = 0;
+                inOrderedList = false;
+            }
+        };
+        for (const line of lines) {
+            const unorderedMatch = line.match(/^[\s]*[-\*\+]\s+(.+)$/);
+            const orderedMatch = line.match(/^[\s]*\d+\.\s+(.+)$/);
+            if (unorderedMatch) {
+                if (inOrderedList) {
+                    closeList();
+                }
+                inUnorderedList = true;
+                listItems.push(unorderedMatch[1]);
+            }
+            else if (orderedMatch) {
+                if (inUnorderedList) {
+                    closeList();
+                }
+                inOrderedList = true;
+                listItems.push(orderedMatch[1]);
+            }
+            else {
+                closeList();
+                result.push(line);
+            }
+        }
+        closeList();
+        return result.join("\n");
     }
     convertInline(markdown) {
         // Bold

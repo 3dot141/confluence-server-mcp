@@ -220,24 +220,6 @@ export const toolDefinitions = [
         }
     },
     {
-        name: "confluence_extract_images_from_markdown",
-        description: "Extract image references from Markdown content. Returns a list of images with their paths, types (local/URL), and resolved absolute paths. Use this before uploading attachments.",
-        inputSchema: {
-            type: "object",
-            properties: {
-                markdown: {
-                    type: "string",
-                    description: "Markdown content to analyze"
-                },
-                basePath: {
-                    type: "string",
-                    description: "Base path for resolving relative paths (default: current working directory)"
-                }
-            },
-            required: ["markdown"]
-        }
-    },
-    {
         name: "confluence_build_code_macro",
         description: "[FORMAT CONVERSION TOOL] Generate a Confluence code macro in Storage Format. This is a utility for building Confluence content, not an API operation.",
         inputSchema: {

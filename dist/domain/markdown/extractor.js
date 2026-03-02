@@ -3,7 +3,8 @@ import path from "node:path";
 export class MarkdownImageExtractor {
     basePath;
     constructor(basePath = process.cwd()) {
-        this.basePath = basePath;
+        // 确保 basePath 是绝对路径，避免相对路径解析问题
+        this.basePath = path.resolve(basePath);
     }
     extract(markdown) {
         const images = [];

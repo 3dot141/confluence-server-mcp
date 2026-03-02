@@ -162,19 +162,6 @@ export async function handleToolCall(name: string, args: Record<string, unknown>
         };
       }
 
-      case "confluence_extract_images_from_markdown": {
-        const result = conversionUseCases.extractImagesFromMarkdown({
-          markdown: args.markdown as string,
-          basePath: args.basePath as string | undefined
-        });
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify(result, null, 2)
-          }]
-        };
-      }
-
       // Code macro
       case "confluence_build_code_macro": {
         const macro = codeMacro(
