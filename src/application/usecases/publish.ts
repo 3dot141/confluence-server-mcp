@@ -4,6 +4,7 @@ import {
   MarkdownToConfluenceConverter,
   extractImagesFromMarkdown,
 } from "../../domain/markdown/index.js";
+import { easyHeadingFreeMacro } from "../../domain/markdown/macros.js";
 import { config } from "../../infrastructure/config.js";
 import { PublishMarkdownRequestDto } from "../dto/requests.js";
 import { PublishMarkdownResponse } from "../dto/responses.js";
@@ -67,12 +68,13 @@ export class PublishUseCases {
       }
     }
 
-    // 6. Convert markdown
+    // 6. Convert markdown and prepend TOC macro
     const converter = new MarkdownToConfluenceConverter({
       imageMapping,
       basePath: dto.basePath,
     });
-    const content = converter.convert(dto.markdown);
+    const convertedContent = converter.convert(dto.markdown);
+    const content = easyHeadingFreeMacro() + "\n\n" + convertedContent;
 
     // 7. Update page with content
     if (operation === "updated") {

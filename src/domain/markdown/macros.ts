@@ -50,6 +50,14 @@ export function tocMacro(): string {
   return `<ac:structured-macro ac:name="toc"></ac:structured-macro>`;
 }
 
+// Easy Heading Free macro (for table of contents)
+export function easyHeadingFreeMacro(): string {
+  return `<ac:structured-macro ac:name="easy-heading-free">
+  <ac:parameter ac:name="navigationExpandOption">collapse-all-but-headings-1</ac:parameter>
+  <ac:rich-text-body/>
+</ac:structured-macro>`;
+}
+
 // Table
 export function table(headers: string[], rows: string[][]): string {
   const headerRow = headers.map(h => `<th>${escapeXml(h)}</th>`).join("");
