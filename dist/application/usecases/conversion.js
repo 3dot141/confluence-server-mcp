@@ -10,12 +10,6 @@ export class ConversionUseCases {
         const result = converter.convertWithMetadata(input.markdown);
         return {
             storageFormat: result.storageFormat,
-            extractedImages: result.extractedImages.map(img => ({
-                alt: img.alt,
-                src: img.src,
-                absolutePath: img.absolutePath || img.src,
-                type: img.type
-            })),
             title: result.title
         };
     }
