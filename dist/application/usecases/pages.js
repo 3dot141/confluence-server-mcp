@@ -42,7 +42,7 @@ export class PageUseCases {
         }
         const updated = await confluenceRepository.updatePage({
             pageId: page.id,
-            title: dto.newTitle || dto.title,
+            title: dto.newTitle || dto.title || page.title,
             content: dto.content,
             version: page.version.number + 1,
         });
