@@ -14,8 +14,8 @@ Requires the `confluence-client` skill for API operations.
 ## Quick Start
 
 ```typescript
-import { MarkdownToConfluenceConverter, extractImagesFromMarkdown } from './scripts/converter.js';
-import { ConfluencePublisher } from './scripts/publisher.js';
+import { MarkdownToConfluenceConverter, extractImagesFromMarkdown } from '../scripts/markdown-to-confluence/converter.js';
+import { ConfluencePublisher } from '../scripts/markdown-to-confluence/publisher.js';
 
 // Basic conversion
 const converter = new MarkdownToConfluenceConverter();
@@ -39,7 +39,7 @@ const result = await publisher.publish({
 Convert Markdown to Confluence Storage Format:
 
 ```typescript
-import { MarkdownToConfluenceConverter } from './scripts/converter.js';
+import { MarkdownToConfluenceConverter } from '../scripts/markdown-to-confluence/converter.js';
 
 const converter = new MarkdownToConfluenceConverter({
   addTocMacro: true,      // Add table of contents
@@ -57,7 +57,7 @@ console.log(result.storageFormat); // Confluence XML
 Extract and upload images from Markdown:
 
 ```typescript
-import { extractImagesFromMarkdown } from './scripts/extractor.js';
+import { extractImagesFromMarkdown } from '../scripts/markdown-to-confluence/extractor.js';
 
 const images = extractImagesFromMarkdown(markdown, './docs');
 // Returns: [{ originalPath, absolutePath, altText, isBase64 }]
@@ -68,7 +68,7 @@ const images = extractImagesFromMarkdown(markdown, './docs');
 One-step publish to Confluence:
 
 ```typescript
-import { ConfluencePublisher } from './scripts/publisher.js';
+import { ConfluencePublisher } from '../scripts/markdown-to-confluence/publisher.js';
 
 const publisher = new ConfluencePublisher(confluenceClient);
 
@@ -180,7 +180,7 @@ Title is extracted from front matter or first H1.
 Convert Mermaid diagrams to images:
 
 ```typescript
-import { MermaidProcessor } from './scripts/mermaid.js';
+import { MermaidProcessor } from '../scripts/markdown-to-confluence/mermaid.js';
 
 const processor = new MermaidProcessor();
 
@@ -196,8 +196,8 @@ Requires `mermaid-cli` (`@mermaid-js/mermaid-cli`) for rendering.
 ## Complete Workflow
 
 ```typescript
-import { ConfluenceClient } from '../confluence-client/scripts/confluence-client.js';
-import { ConfluencePublisher } from './scripts/publisher.js';
+import { ConfluenceClient } from '../scripts/confluence-client/confluence-client.js';
+import { ConfluencePublisher } from '../scripts/markdown-to-confluence/publisher.js';
 
 // 1. Setup client
 const client = new ConfluenceClient({
@@ -238,12 +238,12 @@ try {
 
 ### scripts/
 
-- `converter.ts` - Markdown to Confluence Storage Format converter
-- `extractor.ts` - Image extraction from Markdown
-- `publisher.ts` - High-level publishing workflow
-- `mermaid.ts` - Mermaid diagram processing
-- `macros.ts` - Confluence macro builders
-- `types.ts` - TypeScript interfaces
+- `../scripts/markdown-to-confluence/converter.ts` - Markdown to Confluence Storage Format converter
+- `../scripts/markdown-to-confluence/extractor.ts` - Image extraction from Markdown
+- `../scripts/markdown-to-confluence/publisher.ts` - High-level publishing workflow
+- `../scripts/markdown-to-confluence/mermaid.ts` - Mermaid diagram processing
+- `../scripts/markdown-to-confluence/macros.ts` - Confluence macro builders
+- `../scripts/markdown-to-confluence/types.ts` - TypeScript interfaces
 
 ### references/
 

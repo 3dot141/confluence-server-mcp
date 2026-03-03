@@ -12,7 +12,7 @@ A robust TypeScript client for interacting with the Confluence REST API. Provide
 ## Quick Start
 
 ```typescript
-import { ConfluenceClient } from './scripts/confluence-client.js';
+import { ConfluenceClient } from '../scripts/confluence-client/confluence-client.js';
 
 const client = new ConfluenceClient({
   baseUrl: 'https://your-instance.atlassian.net/wiki',
@@ -157,7 +157,7 @@ const results = await Promise.allSettled(
 The client throws typed errors:
 
 ```typescript
-import { ConfluenceError, NotFoundError, ValidationError, AuthenticationError } from './scripts/confluence-client.js';
+import { ConfluenceError, NotFoundError, ValidationError, AuthenticationError } from '../scripts/confluence-client/confluence-client.js';
 
 try {
   await client.getPageById('invalid-id');
@@ -201,8 +201,8 @@ The client handles rate limits automatically:
 
 ### scripts/
 
-- `confluence-client.ts` - Main client class with all API methods
-- `errors.ts` - Error classes for different failure scenarios
-- `types.ts` - TypeScript interfaces and types
+- `confluence-client/confluence-client.ts` - Main client class with all API methods
+- `confluence-client/errors.ts` - Error classes for different failure scenarios
+- `confluence-client/types.ts` - TypeScript interfaces and types
 
-Load `scripts/confluence-client.ts` for the complete implementation with all methods and types.
+Load `../scripts/confluence-client/confluence-client.ts` for the complete implementation with all methods and types.

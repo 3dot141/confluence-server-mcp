@@ -93,7 +93,7 @@ Use: `client.searchPages(query, space)`
 ### Initialize Client
 
 ```typescript
-import { ConfluenceClient } from '../confluence-client/scripts/confluence-client.js';
+import { ConfluenceClient } from '../scripts/confluence-client/confluence-client.js';
 
 const client = new ConfluenceClient({
   baseUrl: 'https://company.atlassian.net/wiki',
@@ -176,7 +176,7 @@ const attachment = await client.uploadAttachmentFromBuffer(
 ### Simple Publish
 
 ```typescript
-import { ConfluencePublisher } from '../markdown-to-confluence/scripts/publisher.js';
+import { ConfluencePublisher } from '../scripts/markdown-to-confluence/publisher.js';
 
 const publisher = new ConfluencePublisher(client);
 
@@ -216,9 +216,9 @@ const results = await publisher.publishMultiple(requests, { concurrency: 3 });
 If you need fine-grained control over the publishing process:
 
 ```typescript
-import { ConfluenceClient } from '../confluence-client/scripts/confluence-client.js';
-import { MarkdownToConfluenceConverter } from '../markdown-to-confluence/scripts/converter.js';
-import { extractImagesFromMarkdown } from '../markdown-to-confluence/scripts/extractor.js';
+import { ConfluenceClient } from '../scripts/confluence-client/confluence-client.js';
+import { MarkdownToConfluenceConverter } from '../scripts/markdown-to-confluence/converter.js';
+import { extractImagesFromMarkdown } from '../scripts/markdown-to-confluence/extractor.js';
 
 // 1. Setup client
 const client = new ConfluenceClient(config);
@@ -261,9 +261,9 @@ page = await client.updatePage({
 ### Example 1: Update Existing Page with Images
 
 ```typescript
-import { ConfluenceClient } from '../confluence-client/scripts/confluence-client.js';
-import { MarkdownToConfluenceConverter } from '../markdown-to-confluence/scripts/converter.js';
-import { extractImagesFromMarkdown } from '../markdown-to-confluence/scripts/extractor.js';
+import { ConfluenceClient } from '../scripts/confluence-client/confluence-client.js';
+import { MarkdownToConfluenceConverter } from '../scripts/markdown-to-confluence/converter.js';
+import { extractImagesFromMarkdown } from '../scripts/markdown-to-confluence/extractor.js';
 import * as path from 'node:path';
 
 const client = new ConfluenceClient(config);
@@ -310,7 +310,7 @@ const parentResults = await client.searchPages('项目规划', 'Teams', 1);
 const parentId = parentResults[0].id;
 
 // 2. Extract title from markdown
-import { extractTitleFromMarkdown } from '../markdown-to-confluence/scripts/extractor.js';
+import { extractTitleFromMarkdown } from '../scripts/markdown-to-confluence/extractor.js';
 const title = extractTitleFromMarkdown(markdown) || 'Untitled';
 
 // 3. Create child page
@@ -327,7 +327,7 @@ const { id: pageId } = await client.createPage({
 ## Error Handling
 
 ```typescript
-import { NotFoundError, ValidationError, AuthenticationError } from '../confluence-client/scripts/confluence-client.js';
+import { NotFoundError, ValidationError, AuthenticationError } from '../scripts/confluence-client/confluence-client.js';
 
 try {
   await client.getPageById('invalid-id');
