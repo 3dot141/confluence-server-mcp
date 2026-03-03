@@ -1,5 +1,6 @@
 // src/presentation/mcp/tools/handlers.ts
 import { spaceUseCases, pageUseCases, attachmentUseCases, commentUseCases, permissionUseCases, conversionUseCases, } from "../../../application/usecases/index.js";
+import { mermaidPublishUseCase } from '../../../application/usecases/mermaid-publish.js';
 import { codeMacro } from "../../../domain/markdown/macros.js";
 import { ConfluenceError } from "../../../infrastructure/errors.js";
 export async function handleToolCall(name, args) {
@@ -143,6 +144,20 @@ export async function handleToolCall(name, args) {
             case "confluence_build_code_macro": {
                 const macro = codeMacro(args.code, args.language);
                 return { content: [{ type: "text", text: macro }] };
+            }
+            case "confluence_process_mermaid_diagrams": {
+                const result = await mermaidPublishUseCase.process({
+                    pageId: args.pageId,
+                    markdown: args.markdown,
+                    theme: args.theme || 'default',
+                    bgColor: args.bgColor
+                });
+                return {
+                    content: [{
+                            type: "text",
+                            text: JSON.stringify(result, null, 2)
+                        }]
+                };
             }
             default:
                 throw new Error(`Unknown tool: ${name}`);

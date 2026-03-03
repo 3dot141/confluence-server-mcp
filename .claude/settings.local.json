@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git push:*)",
+      "Bash(npm run:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(DEBUG= npm test:*)",
+      "mcp__morph-mcp__edit_file",
+      "mcp__morph-mcp__warpgrep_codebase_search",
+      "mcp__sequential-thinking__sequentialthinking",
+      "mcp__exa__get_code_context_exa"
+    ]
+  }
+}
