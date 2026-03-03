@@ -42,6 +42,9 @@ export class MarkdownToConfluenceConverter {
     // Extract front matter
     markdown = this.extractFrontMatter(markdown);
     
+    // Remove emojis from entire markdown (including code blocks)
+    markdown = this.removeEmojis(markdown);
+    
     const parts: string[] = [];
     
     // Add TOC if enabled
@@ -389,5 +392,17 @@ export class MarkdownToConfluenceConverter {
   private extractH1Title(markdown: string): string | undefined {
     const match = markdown.match(/^#\s+(.+)$/m);
     return match ? match[1].trim() : undefined;
+  }
+
+  private removeEmojis(text: string): string {
+    // Remove Unicode emojis (various emoji ranges including symbols and arrows)
+    // eslint-disable-next-line no-misleading-character-class
+    const emojiRegex = /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F018}-\u{1F270}]|[\u{238C}]|[\u{1F191}-\u{1F251}]|[\u{1F004}]|[\u{1F0CF}]|[\u{1F170}-\u{1F251}]|[\u{200D}]|[\u{FE0F}]|[\u{E0000}-\u{E007F}]|[\u{2190}-\u{21FF}]|[\u{2B00}-\u{2BFF}]|[\u{2300}-\u{23FF}]/gu;
+    
+    // Remove emoji shortcodes like :smile:, :rocket:, etc.
+    const shortcodeRegex = /:\w+:/g;
+    
+    // Remove emojis and clean up any double spaces left behind
+    return text.replace(emojiRegex, '').replace(shortcodeRegex, '').replace(/ +/g, ' ');
   }
 }
