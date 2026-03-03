@@ -335,5 +335,70 @@ describe('MarkdownToConfluenceConverter - Table Conversion', () => {
             expect(result).toContain('<td>v20.10.0</td>');
         });
     });
+    describe('图片转换', () => {
+        it('应该转换标准 markdown 图片格式', () => {
+            const markdown = '![alt text](./images/test.png)';
+            const result = converter.convert(markdown);
+            expect(result).toContain('<ac:image>');
+            expect(result).toContain('</ac:image>');
+            expect(result).toContain('<ri:attachment');
+            expect(result).toContain('ri:filename="test.png"');
+        });
+        it('应该转换 Obsidian 图片格式', () => {
+            const markdown = '![[./images/photo.jpg]]';
+            const result = converter.convert(markdown);
+            expect(result).toContain('<ac:image>');
+            expect(result).toContain('ri:filename="photo.jpg"');
+        });
+        it('应该使用 imageMapping 映射图片路径', () => {
+            const markdown = '![alt](./local/path/image.png)';
+            const converterWithMapping = new MarkdownToConfluenceConverter({
+                addTocMacro: false,
+                imageMapping: {
+                    './local/path/image.png': 'uploaded-image.png'
+                }
+            });
+            const result = converterWithMapping.convert(markdown);
+            expect(result).toContain('ri:filename="uploaded-image.png"');
+        });
+        it('应该处理 imageMapping 中的 HTTP URL', () => {
+            const markdown = '![alt](./local/path/image.png)';
+            const converterWithMapping = new MarkdownToConfluenceConverter({
+                addTocMacro: false,
+                imageMapping: {
+                    './local/path/image.png': 'https://example.com/image.png'
+                }
+            });
+            const result = converterWithMapping.convert(markdown);
+            expect(result).toContain('<ri:url');
+            expect(result).toContain('ri:value="https://example.com/image.png"');
+        });
+        it('应该对文件名中的 XML 特殊字符进行转义', () => {
+            const markdown = '![alt](./images/file"special"><me.png)';
+            const result = converter.convert(markdown);
+            // XML 特殊字符应被转义
+            expect(result).toContain('&quot;');
+            expect(result).toContain('&lt;');
+            expect(result).toContain('&gt;');
+            expect(result).not.toContain('filename="file"special""');
+        });
+        it('应该对 imageMapping 值中的 XML 特殊字符进行转义', () => {
+            const markdown = '![alt](./test.png)';
+            const converterWithMapping = new MarkdownToConfluenceConverter({
+                addTocMacro: false,
+                imageMapping: {
+                    './test.png': 'image"special".png'
+                }
+            });
+            const result = converterWithMapping.convert(markdown);
+            expect(result).toContain('&quot;');
+            expect(result).not.toContain('filename="image"special".png"');
+        });
+        it('应该处理嵌套路径中的图片', () => {
+            const markdown = '![alt](../assets/images/photo.png)';
+            const result = converter.convert(markdown);
+            expect(result).toContain('ri:filename="photo.png"');
+        });
+    });
 });
 //# sourceMappingURL=converter-tables.spec.js.map

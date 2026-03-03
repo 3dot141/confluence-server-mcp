@@ -142,15 +142,15 @@ export class MarkdownToConfluenceConverter {
         const mappedValue = imageMapping[src];
         // If mapped value is a URL (starts with http), use ri:url
         if (mappedValue.startsWith('http')) {
-          return `<ac:image><ri:url ri:value="${mappedValue}" /></ac:image>`;
+          return `<ac:image><ri:url ri:value="${escapeXmlAttr(mappedValue)}" /></ac:image>`;
         }
         // Otherwise assume it's a filename for ri:attachment
-        return `<ac:image><ri:attachment ri:filename="${mappedValue}" /></ac:image>`;
+        return `<ac:image><ri:attachment ri:filename="${escapeXmlAttr(mappedValue)}" /></ac:image>`;
       }
       
       // No mapping, extract filename from path (e.g., "./images/test.png" -> "test.png")
       const filename = src.split('/').pop().split('\\').pop();
-      return `<ac:image><ri:attachment ri:filename="${filename}" /></ac:image>`;
+      return `<ac:image><ri:attachment ri:filename="${escapeXmlAttr(filename)}" /></ac:image>`;
     });
     
     // Match ![[src]] Obsidian format
@@ -160,15 +160,15 @@ export class MarkdownToConfluenceConverter {
         const mappedValue = imageMapping[src];
         // If mapped value is a URL (starts with http), use ri:url
         if (mappedValue.startsWith('http')) {
-          return `<ac:image><ri:url ri:value="${mappedValue}" /></ac:image>`;
+          return `<ac:image><ri:url ri:value="${escapeXmlAttr(mappedValue)}" /></ac:image>`;
         }
         // Otherwise assume it's a filename for ri:attachment
-        return `<ac:image><ri:attachment ri:filename="${mappedValue}" /></ac:image>`;
+        return `<ac:image><ri:attachment ri:filename="${escapeXmlAttr(mappedValue)}" /></ac:image>`;
       }
       
       // No mapping, extract filename from path
       const filename = src.split('/').pop().split('\\').pop();
-      return `<ac:image><ri:attachment ri:filename="${filename}" /></ac:image>`;
+      return `<ac:image><ri:attachment ri:filename="${escapeXmlAttr(filename)}" /></ac:image>`;
     });
     
     return markdown;

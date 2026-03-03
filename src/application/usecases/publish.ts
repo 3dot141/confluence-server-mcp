@@ -1,4 +1,5 @@
 // src/application/usecases/publish.ts
+import path from "node:path";
 import { confluenceRepository } from "../../domain/confluence/repository.js";
 import {
   MarkdownToConfluenceConverter,
@@ -59,11 +60,21 @@ export class PublishUseCases {
     const imageMapping: { [key: string]: string } = {};
     for (const image of images) {
       if (!image.isBase64) {
-        const result = await confluenceRepository.uploadAttachment(
-          pageId,
-          image.absolutePath
-        );
-        imageMapping[image.originalPath] = result.title;
+        try {
+          await confluenceRepository.uploadAttachment(
+            pageId,
+            image.absolutePath
+          );
+          // Use the filename from the path as the mapping value
+          // This matches what Confluence uses as the attachment name
+          const filename = path.basename(image.originalPath);
+          imageMapping[image.originalPath] = filename;
+        } catch (error) {
+          // Log error but continue with other images
+          console.error(`Failed to upload image ${image.originalPath}:`, error);
+          // Fallback: use original filename - Confluence may still resolve it
+          imageMapping[image.originalPath] = path.basename(image.originalPath);
+        }
       }
     }
 

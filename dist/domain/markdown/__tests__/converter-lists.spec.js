@@ -147,6 +147,17 @@ describe('MarkdownToConfluenceConverter - List Conversion', () => {
             expect(result).toContain('<ac:task-body><p><strong>粗体</strong> 任务</p></ac:task-body>');
             expect(result).toContain('<ac:task-body><p><em>斜体</em> 任务</p></ac:task-body>');
         });
+        it('应该在待办事项内容中进行XML转义', () => {
+            const markdown = `- [ ] 任务 "带引号" 内容
+- [ ] 任务 带<特殊>字符`;
+            const result = converter.convert(markdown);
+            // XML 特殊字符应被转义
+            expect(result).toContain('&quot;');
+            expect(result).toContain('&lt;');
+            expect(result).toContain('&gt;');
+            expect(result).not.toContain('"带引号"');
+            expect(result).not.toContain('<特殊>');
+        });
         it('应该区分普通列表和待办事项列表', () => {
             const markdown = `普通列表：
 - 项目 A
