@@ -7,6 +7,7 @@ import {
   permissionUseCases,
   conversionUseCases,
 } from "../../../application/usecases/index.js";
+import { mermaidPublishUseCase } from '../../../application/usecases/mermaid-publish.js';
 import { codeMacro } from "../../../domain/markdown/macros.js";
 import { ConfluenceError } from "../../../infrastructure/errors.js";
 
@@ -169,6 +170,22 @@ export async function handleToolCall(name: string, args: Record<string, unknown>
           args.language as string | undefined
         );
         return { content: [{ type: "text", text: macro }] };
+      }
+
+      case "confluence_process_mermaid_diagrams": {
+        const result = await mermaidPublishUseCase.process({
+          pageId: args.pageId as string,
+          markdown: args.markdown as string,
+          theme: (args.theme as any) || 'default',
+          bgColor: args.bgColor as string | undefined
+        });
+
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(result, null, 2)
+          }]
+        };
       }
 
       default:

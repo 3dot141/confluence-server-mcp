@@ -233,5 +233,33 @@ export const toolDefinitions = [
       },
       required: ["code"]
     }
+  },
+  {
+    name: "confluence_process_mermaid_diagrams",
+    description: "处理 Markdown 中的所有 Mermaid 图表，渲染为图片并上传为附件，失败时保留原代码块",
+    inputSchema: {
+      type: "object",
+      properties: {
+        pageId: {
+          type: "string",
+          description: "要上传附件的目标页面 ID"
+        },
+        markdown: {
+          type: "string",
+          description: "包含 Mermaid 图表的 Markdown 内容"
+        },
+        theme: {
+          type: "string",
+          enum: ["default", "forest", "dark", "neutral"],
+          default: "default",
+          description: "Mermaid 主题"
+        },
+        bgColor: {
+          type: "string",
+          description: "背景色，例如 'white'"
+        }
+      },
+      required: ["pageId", "markdown"]
+    }
   }
 ];
