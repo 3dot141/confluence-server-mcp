@@ -138,10 +138,13 @@ describe('MarkdownToConfluenceConverter - List Conversion', () => {
 
       expect(result).toContain('<ac:task-list>');
       expect(result).toContain('<ac:task>');
+      expect(result).toContain('<ac:task-id>1</ac:task-id>');
+      expect(result).toContain('<ac:task-id>2</ac:task-id>');
+      expect(result).toContain('<ac:task-id>3</ac:task-id>');
       expect(result).toContain('<ac:task-status>incomplete</ac:task-status>');
-      expect(result).toContain('<ac:task-body>任务一</ac:task-body>');
-      expect(result).toContain('<ac:task-body>任务二</ac:task-body>');
-      expect(result).toContain('<ac:task-body>任务三</ac:task-body>');
+      expect(result).toContain('<ac:task-body><p>任务一</p></ac:task-body>');
+      expect(result).toContain('<ac:task-body><p>任务二</p></ac:task-body>');
+      expect(result).toContain('<ac:task-body><p>任务三</p></ac:task-body>');
       expect(result).toContain('</ac:task>');
       expect(result).toContain('</ac:task-list>');
     });
@@ -153,8 +156,8 @@ describe('MarkdownToConfluenceConverter - List Conversion', () => {
       const result = converter.convert(markdown);
 
       expect(result).toContain('<ac:task-status>complete</ac:task-status>');
-      expect(result).toContain('<ac:task-body>已完成任务一</ac:task-body>');
-      expect(result).toContain('<ac:task-body>已完成任务二</ac:task-body>');
+      expect(result).toContain('<ac:task-body><p>已完成任务一</p></ac:task-body>');
+      expect(result).toContain('<ac:task-body><p>已完成任务二</p></ac:task-body>');
     });
 
     it('应该混合处理完成和未完成的待办事项', () => {
@@ -172,14 +175,15 @@ describe('MarkdownToConfluenceConverter - List Conversion', () => {
       expect(completeCount).toBe(1);
     });
 
-    it('应该在待办事项中保留内联格式', () => {
+    it('应该在待办事项中保留内联格式（已转义）', () => {
       const markdown = `- [ ] **粗体** 任务
 - [x] *斜体* 任务`;
 
       const result = converter.convert(markdown);
 
-      expect(result).toContain('<ac:task-body><strong>粗体</strong> 任务</ac:task-body>');
-      expect(result).toContain('<ac:task-body><em>斜体</em> 任务</ac:task-body>');
+      // 内联格式在任务体中被正确转换
+      expect(result).toContain('<ac:task-body><p><strong>粗体</strong> 任务</p></ac:task-body>');
+      expect(result).toContain('<ac:task-body><p><em>斜体</em> 任务</p></ac:task-body>');
     });
 
     it('应该区分普通列表和待办事项列表', () => {

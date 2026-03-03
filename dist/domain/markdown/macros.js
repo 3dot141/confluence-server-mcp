@@ -10,6 +10,15 @@ export function escapeXml(str) {
         .replace(/"/g, "\u0026quot;")
         .replace(/'/g, "\u0026apos;");
 }
+// XML attribute escape (for use in HTML/XML attributes)
+export function escapeXmlAttr(str) {
+    return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&apos;");
+}
 // Code macro
 export function codeMacro(code, language) {
     const safeCode = escapeForCdata(code);

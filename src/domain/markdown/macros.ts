@@ -13,6 +13,16 @@ export function escapeXml(str: string): string {
     .replace(/'/g, "\u0026apos;");
 }
 
+// XML attribute escape (for use in HTML/XML attributes)
+export function escapeXmlAttr(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
 // Code macro
 export function codeMacro(code: string, language?: string): string {
   const safeCode = escapeForCdata(code);

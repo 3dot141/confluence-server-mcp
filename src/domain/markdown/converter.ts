@@ -1,6 +1,6 @@
 // src/domain/markdown/converter.ts
 import { MarkdownConverterOptions } from "./types.js";
-import { codeMacro, info, warning, tip, note, tocMacro, table, escapeXml } from "./macros.js";
+import { codeMacro, info, warning, tip, note, tocMacro, table, escapeXml, escapeXmlAttr } from "./macros.js";
 
 export interface ConversionResult {
   storageFormat: string;
@@ -319,10 +319,12 @@ export class MarkdownToConfluenceConverter {
     const closeList = () => {
       if (inTaskList) {
         result.push('<ac:task-list>');
-        for (const item of taskItems) {
+        for (let i = 0; i < taskItems.length; i++) {
+          const item = taskItems[i];
           result.push(`  <ac:task>
+    <ac:task-id>${i + 1}</ac:task-id>
     <ac:task-status>${item.checked ? 'complete' : 'incomplete'}</ac:task-status>
-    <ac:task-body>${item.text}</ac:task-body>
+    <ac:task-body><p>${escapeXml(item.text)}</p></ac:task-body>
   </ac:task>`);
         }
         result.push('</ac:task-list>');

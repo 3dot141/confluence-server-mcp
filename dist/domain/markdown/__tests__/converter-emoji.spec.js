@@ -81,7 +81,7 @@ describe('MarkdownToConfluenceConverter - Emoji Removal', () => {
         it('应该在待办事项中移除 emoji', () => {
             const markdown = '- [ ] 🎯 目标任务';
             const result = converter.convert(markdown);
-            expect(result).toContain('<ac:task-body>目标任务</ac:task-body>');
+            expect(result).toContain('<ac:task-body><p>目标任务</p></ac:task-body>');
             expect(result).not.toContain('🎯');
         });
     });
