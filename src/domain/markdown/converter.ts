@@ -119,6 +119,8 @@ export class MarkdownToConfluenceConverter {
     markdown = this.convertBlockquotes(markdown);
     // Convert headings
     markdown = this.convertHeadings(markdown);
+    // Convert tables BEFORE lists and inline
+    markdown = this.convertTables(markdown);
     // Convert lists BEFORE inline
     markdown = this.convertLists(markdown);
     // Convert images BEFORE inline (so they don't become links)
@@ -222,6 +224,87 @@ export class MarkdownToConfluenceConverter {
       markdown = markdown.replace(pattern, `<h${level}>$1</h${level}>`);
     }
     return markdown;
+  }
+
+  private convertTables(markdown: string): string {
+    const lines = markdown.split("\n");
+    const result: string[] = [];
+    let inTable = false;
+    let tableLines: string[] = [];
+
+    const parseTable = (lines: string[]): string => {
+      if (lines.length < 2) return lines.join("\n");
+
+      // Parse header row
+      const headerLine = lines[0].trim();
+      const headers = headerLine
+        .split("|")
+        .map(h => escapeXml(h.trim()))
+        .filter(h => h.length > 0);
+
+      // Skip separator line (line 1)
+      // Parse data rows
+      const rows: string[][] = [];
+      for (let i = 2; i < lines.length; i++) {
+        const rowLine = lines[i].trim();
+        if (!rowLine.startsWith("|") || rowLine === "|") break;
+
+        // Split by | and trim
+        const rawCells = rowLine.split("|").map(c => c.trim());
+        
+        // Filter out empty first/last elements from split (caused by leading/trailing |)
+        const nonEmptyCells = rawCells.filter((cell, idx, arr) => {
+          const isFirst = idx === 0;
+          const isLast = idx === arr.length - 1;
+          // Keep if not (first or last) OR if it has content
+          return !(isFirst || isLast) || cell.length > 0;
+        });
+        
+        // Convert inline formatting for each cell
+        const cells = nonEmptyCells.map(c => this.convertInline(c));
+        
+        // Ensure we have the right number of cells
+        while (cells.length < headers.length) {
+          cells.push("");
+        }
+        while (cells.length > headers.length) {
+          cells.pop();
+        }
+        
+        rows.push(cells);
+      }
+
+      return table(headers, rows);
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+
+      // Check if line looks like a table row
+      if (trimmed.startsWith("|") && trimmed.includes("|", 1)) {
+        if (!inTable) {
+          inTable = true;
+          tableLines = [line];
+        } else {
+          tableLines.push(line);
+        }
+      } else {
+        if (inTable) {
+          // End of table
+          result.push(parseTable(tableLines));
+          inTable = false;
+          tableLines = [];
+        }
+        result.push(line);
+      }
+    }
+
+    if (inTable) {
+      result.push(parseTable(tableLines));
+    }
+
+    return result.join("\n");
   }
 
   private convertLists(markdown: string): string {

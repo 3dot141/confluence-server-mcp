@@ -55,9 +55,9 @@ export function tocMacro(): string {
 
 // Table
 export function table(headers: string[], rows: string[][]): string {
-  const headerRow = headers.map(h => `<th>${escapeXml(h)}</th>`).join("");
+  const headerRow = headers.map(h => `<th>${h}</th>`).join("");
   const dataRows = rows
-    .map(row => `<tr>${row.map(cell => `<td>${escapeXml(cell)}</td>`).join("")}</tr>`)
+    .map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join("")}</tr>`)
     .join("");
   
   return `<table><thead><tr>${headerRow}</tr></thead><tbody>${dataRows}</tbody></table>`;
