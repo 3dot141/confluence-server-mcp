@@ -1,9 +1,9 @@
 // Confluence Publisher
 import * as path from 'node:path';
-import { ConfluenceClient } from '../confluence-client/confluence-client.js';
-import { MarkdownToConfluenceConverter } from './converter.js';
-import { extractImagesFromMarkdown, extractTitleFromMarkdown } from './extractor.js';
-import { PublishRequest, PublishResult, ImageMapping } from './types.js';
+import { ConfluenceClient } from '../confluence-client/confluence-client.ts';
+import { MarkdownToConfluenceConverter } from './converter.ts';
+import { extractImagesFromMarkdown, extractTitleFromMarkdown } from './extractor.ts';
+import { PublishRequest, PublishResult, ImageMapping } from './types.ts';
 
 export class ConfluencePublisher {
   private client: ConfluenceClient;

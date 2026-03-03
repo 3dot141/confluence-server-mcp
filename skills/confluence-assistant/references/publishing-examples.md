@@ -5,9 +5,9 @@ Detailed examples, edge cases, and supported Markdown syntax for Confluence publ
 ## Alternative: Update Existing Page
 
 ```typescript
-import { ConfluenceClient } from '../../scripts/confluence-client/confluence-client.js';
-import { MarkdownToConfluenceConverter } from '../../scripts/markdown-to-confluence/converter.js';
-import { extractImagesFromMarkdown } from '../../scripts/markdown-to-confluence/extractor.js';
+import { ConfluenceClient } from '../scripts/confluence-client/confluence-client.ts';
+import { MarkdownToConfluenceConverter } from '../scripts/markdown-to-confluence/converter.ts';
+import { extractImagesFromMarkdown } from '../scripts/markdown-to-confluence/extractor.ts';
 
 const client = new ConfluenceClient(config);
 
@@ -135,7 +135,7 @@ if (!fs.existsSync(image.absolutePath)) {
 For dynamically generated content (charts, diagrams):
 
 ```typescript
-import { ConfluenceClient } from '../../scripts/confluence-client/confluence-client.js';
+import { ConfluenceClient } from '../scripts/confluence-client/confluence-client.ts';
 import { createCanvas } from 'canvas';
 
 const client = new ConfluenceClient(config);
@@ -181,7 +181,7 @@ await client.updatePage({
 For Mermaid diagrams, render them to images first:
 
 ```typescript
-import { MermaidProcessor } from '../../scripts/markdown-to-confluence/mermaid.js';
+import { MermaidProcessor } from '../scripts/markdown-to-confluence/mermaid.ts';
 
 const processor = new MermaidProcessor({
   outputDir: './temp',

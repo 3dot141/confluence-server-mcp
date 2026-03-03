@@ -62,9 +62,9 @@ User says "上传/同步到 XX":
 **For NEW pages (create + upload):**
 
 ```typescript
-import { ConfluenceClient } from '../../scripts/confluence-client/confluence-client.js';
-import { MarkdownToConfluenceConverter } from '../../scripts/markdown-to-confluence/converter.js';
-import { extractImagesFromMarkdown } from '../../scripts/markdown-to-confluence/extractor.js';
+import { ConfluenceClient } from '../scripts/confluence-client/confluence-client.ts';
+import { MarkdownToConfluenceConverter } from '../scripts/markdown-to-confluence/converter.ts';
+import { extractImagesFromMarkdown } from '../scripts/markdown-to-confluence/extractor.ts';
 import * as path from 'node:path';
 
 const client = new ConfluenceClient(config);
@@ -109,9 +109,9 @@ await client.updatePage({
 **For EXISTING pages:**
 
 ```typescript
-import { ConfluenceClient } from '../../scripts/confluence-client/confluence-client.js';
-import { MarkdownToConfluenceConverter } from '../../scripts/markdown-to-confluence/converter.js';
-import { extractImagesFromMarkdown } from '../../scripts/markdown-to-confluence/extractor.js';
+import { ConfluenceClient } from '../scripts/confluence-client/confluence-client.ts';
+import { MarkdownToConfluenceConverter } from '../scripts/markdown-to-confluence/converter.ts';
+import { extractImagesFromMarkdown } from '../scripts/markdown-to-confluence/extractor.ts';
 import * as path from 'node:path';
 
 // 1. MUST get page first to get current version
@@ -154,7 +154,7 @@ await client.updatePage({
 **Using ConfluencePublisher (Recommended):**
 
 ```typescript
-import { ConfluencePublisher } from '../../scripts/markdown-to-confluence/publisher.js';
+import { ConfluencePublisher } from '../scripts/markdown-to-confluence/publisher.ts';
 
 const publisher = new ConfluencePublisher(client);
 
@@ -170,9 +170,9 @@ const result = await publisher.publish({
 **Manual workflow:**
 
 ```typescript
-import { ConfluenceClient } from '../../scripts/confluence-client/confluence-client.js';
-import { MarkdownToConfluenceConverter } from '../../scripts/markdown-to-confluence/converter.js';
-import { extractImagesFromMarkdown } from '../../scripts/markdown-to-confluence/extractor.js';
+import { ConfluenceClient } from '../scripts/confluence-client/confluence-client.ts';
+import { MarkdownToConfluenceConverter } from '../scripts/markdown-to-confluence/converter.ts';
+import { extractImagesFromMarkdown } from '../scripts/markdown-to-confluence/extractor.ts';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 

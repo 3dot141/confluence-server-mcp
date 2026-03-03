@@ -1,7 +1,7 @@
 // Image Extraction from Markdown
 import * as path from 'node:path';
 import * as fs from 'node:fs';
-import { ExtractedImage } from './types.js';
+import { ExtractedImage } from './types.ts';
 
 export function extractImagesFromMarkdown(
   markdown: string,

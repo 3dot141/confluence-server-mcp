@@ -1,6 +1,6 @@
 // Markdown to Confluence Converter
-import { MarkdownConverterOptions, ConversionResult } from './types.js';
-import { codeMacro, info, warning, tip, note, tocMacro, table, escapeXml, escapeXmlAttr } from './macros.js';
+import { MarkdownConverterOptions, ConversionResult } from './types.ts';
+import { codeMacro, info, warning, tip, note, tocMacro, table, escapeXml, escapeXmlAttr } from './macros.ts';
 
 type Segment = ['code' | 'text', string];
 

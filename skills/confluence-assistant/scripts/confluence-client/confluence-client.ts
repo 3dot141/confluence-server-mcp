@@ -11,7 +11,7 @@ import {
   UpdatePageRequest,
   RestrictionRequest,
   ApiResponse
-} from './types.js';
+} from './types.ts';
 import {
   ConfluenceError,
   NotFoundError,
@@ -19,10 +19,10 @@ import {
   AuthenticationError,
   PermissionError,
   RateLimitError
-} from './errors.js';
+} from './errors.ts';
 
-export * from './types.js';
-export * from './errors.js';
+export * from './types.ts';
+export * from './errors.ts';
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
