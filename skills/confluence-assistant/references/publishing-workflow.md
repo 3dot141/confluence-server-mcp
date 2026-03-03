@@ -1,14 +1,23 @@
 # Markdown Publishing Workflow
 
-Complete workflow for publishing Markdown with images to Confluence.
+Complete workflow for publishing Markdown with images to Confluence using direct TypeScript clients.
 
-**Architecture Overview:**
+**Architecture:**
 ```
-Infrastructure Layer  → HTTP Client, Config
-Domain Layer          → Confluence API Repository
-Application Layer     → Use Cases (publish, upload)
-Presentation Layer    → MCP Tool Handlers
+User Request
+    ↓
+ConfluencePublisher (markdown-to-confluence skill)
+    ↓
+ConfluenceClient (confluence-client skill)
+    ↓
+Confluence REST API
 ```
+
+**Benefits over MCP approach:**
+- Direct function calls (no tool overhead)
+- Type-safe throughout
+- Simpler error handling
+- Better performance
 
 ## User Intent Decision Tree
 
@@ -19,11 +28,11 @@ User says "上传/同步到 XX":
   ↓
 ┌─────────────────────────────────────────────────────────────┐
 │  Check if XX exists?                                        │
-│  Use: confluence_search_pages or confluence_get_page        │
+│  Use: client.searchPages() or client.getPageByTitle()       │
 └─────────────────────────────────────────────────────────────┘
   ↓
   ├─ If EXISTS → "更新/同步页面" (Update existing page)
-  │              ├─ Must call get_page first (get version)
+  │              ├─ Must call getPageById first (get version)
   │              ├─ Extract new images
   │              ├─ Upload missing images
   │              └─ Update with new content
@@ -32,10 +41,10 @@ User says "上传/同步到 XX":
     ↓
     Check for "目录下/under" keyword?
     ├─ NO "目录下" → Create at space root
-    │   Use: confluence_create_page({ space, title, content })
+    │   Use: client.createPage({ space, title, content })
     │
     └─ YES "目录下 XX" → Create as child of XX
-        Use: confluence_create_page({ space, title, content, parentId: XX.id })
+        Use: client.createPage({ space, title, content, parentId: XX.id })
 ```
 
 ### Intent Examples
@@ -52,11 +61,43 @@ User says "上传/同步到 XX":
 
 **For NEW pages (create + upload):**
 
-1. **Search/Verify** - Check if target exists (avoid duplicates)
-2. **Extract Images** - Manually parse markdown for `![alt](path)` patterns (LLM extraction)
-3. **Create Page** - Create placeholder to get pageId
-4. **Upload Images** - Upload as attachments, capture filenames
-5. **Convert & Update** - Use image mapping, save final content
+```typescript
+import { ConfluenceClient } from '../../confluence-client/scripts/confluence-client.js';
+import { MarkdownToConfluenceConverter } from '../../markdown-to-confluence/scripts/converter.js';
+import { extractImagesFromMarkdown } from '../../markdown-to-confluence/scripts/extractor.js';
+import * as path from 'node:path';
+
+const client = new ConfluenceClient(config);
+
+// 1. Search/Verify - Check if target exists (avoid duplicates)
+const existing = await client.searchPages(title, space);
+
+// 2. Extract Images - Parse markdown for ![alt](path) patterns
+const images = extractImagesFromMarkdown(markdown, basePath);
+
+// 3. Create Page - Create placeholder to get pageId
+const page = await client.createPage({
+  space, title,
+  content: "<p>Uploading images...</p>"
+});
+
+// 4. Upload Images - Upload as attachments, capture filenames
+const imageMapping: Record<string, string> = {};
+for (const image of images) {
+  const attachment = await client.uploadAttachment(page.id, image.absolutePath);
+  imageMapping[image.originalPath] = attachment.title;
+}
+
+// 5. Convert & Update - Use image mapping, save final content
+const converter = new MarkdownToConfluenceConverter({ imageMapping });
+const content = converter.convert(markdown);
+await client.updatePage({
+  pageId: page.id,
+  title,
+  content,
+  version: 2
+});
+```
 
 **Why this order matters:**
 - Confluence renames duplicates (e.g., `image.png` → `image (1).png`)
@@ -67,179 +108,172 @@ User says "上传/同步到 XX":
 
 **For EXISTING pages:**
 
-1. **Get Page** - MUST call first to get current version
-2. **Get Attachments** - Check what images already exist
-3. **Extract Images** - Manually parse markdown for `![alt](path)` patterns (LLM extraction)
-4. **Upload Missing** - Only upload new/changed images
-5. **Convert & Update** - Use full image mapping
+```typescript
+import { ConfluenceClient } from '../../confluence-client/scripts/confluence-client.js';
+import { MarkdownToConfluenceConverter } from '../../markdown-to-confluence/scripts/converter.js';
+import { extractImagesFromMarkdown } from '../../markdown-to-confluence/scripts/extractor.js';
+import * as path from 'node:path';
 
-```javascript
-// Update workflow
-async function updateExistingPage(pageId, markdown, basePath) {
-  // 1. MUST get page first
-  const page = await confluence_get_page({ pageId });
-  
-  // 2. Check existing attachments
-  const existingAttachments = await confluence_get_page_attachments({ pageId });
-  const existingFilenames = new Set(existingAttachments.map(a => a.title));
-  
-  // 3. Manual extract images - Parse markdown for ![alt](path) patterns
-  //    Example: extractImagePathsFromMarkdown(markdown) returns ["./images/diagram.png"]
-  const imagePaths = extractImagePathsFromMarkdown(markdown);
-  const images = imagePaths.map(p => ({
-    originalPath: p,
-    absolutePath: resolvePath(p, basePath)
-  }));
-  
-  // 4. Upload only new images
-  const imageMapping = {};
-  for (const img of images) {
-    const filename = path.basename(img.absolutePath);
-    if (existingFilenames.has(filename)) {
-      // Already exists, use existing
-      imageMapping[img.originalPath] = filename;
-    } else {
-      // Upload new
-      const result = await confluence_upload_attachment({ pageId, filePath: img.absolutePath });
-      imageMapping[img.originalPath] = result.filename;
-    }
+// 1. MUST get page first to get current version
+const page = await client.getPageById(pageId);
+
+// 2. Get existing attachments
+const existingAttachments = await client.getPageAttachments(page.id);
+const existingFilenames = new Set(existingAttachments.map(a => a.title));
+
+// 3. Extract images from markdown
+const images = extractImagesFromMarkdown(markdown, basePath);
+
+// 4. Upload only new images
+const imageMapping: Record<string, string> = {};
+for (const image of images) {
+  const filename = path.basename(image.absolutePath);
+  if (existingFilenames.has(filename)) {
+    imageMapping[image.originalPath] = filename;
+  } else {
+    const attachment = await client.uploadAttachment(page.id, image.absolutePath);
+    imageMapping[image.originalPath] = attachment.title;
   }
-  
-  // 5. Convert and update
-  const { storageFormat } = await confluence_convert_markdown_to_storage({ markdown, imageMapping });
-  await confluence_update_page({ pageId, content: storageFormat });
 }
+
+// 5. Convert and update
+const converter = new MarkdownToConfluenceConverter({ imageMapping });
+const content = converter.convert(markdown);
+await client.updatePage({
+  pageId: page.id,
+  title,
+  content,
+  version: page.version.number + 1
+});
+```
 
 ## Quick Reference
 
 ### Scenario A: Create New Page (Space Root)
 
-```javascript
-async function publishToSpace(filePath, space, title) {
-  const fs = require('fs');
-  const path = require('path');
-  
-  // 1. Read and extract
-  const markdown = fs.readFileSync(filePath, 'utf-8');
-  const basePath = path.dirname(filePath);
-  const imagePaths = extractImagePathsFromMarkdown(markdown);
-  const images = imagePaths.map(p => ({
-    originalPath: p,
-    absolutePath: path.resolve(basePath, p)
-  }));
-  
-  // 2. Create placeholder at space root
-  const { id: pageId } = await confluence_create_page({
-    space, title,
-    content: "<p>Uploading images...</p>"
-  });
-  
-  // 3. Upload and build mapping
-  const imageMapping = {};
-  for (const img of images) {
-    const result = await confluence_upload_attachment({ pageId, filePath: img.absolutePath });
-    imageMapping[img.originalPath] = result.filename;
-  }
-  
-  // 4. Convert with mapping
-  const { storageFormat } = await confluence_convert_markdown_to_storage({
-    markdown, imageMapping
-  });
-  
-  // 5. Update page
-  await confluence_update_page({ pageId, content: storageFormat });
-  return pageId;
+**Using ConfluencePublisher (Recommended):**
+
+```typescript
+import { ConfluencePublisher } from '../../markdown-to-confluence/scripts/publisher.js';
+
+const publisher = new ConfluencePublisher(client);
+
+const result = await publisher.publish({
+  markdown,
+  space: 'DEV',
+  title: 'My Page'  // Optional - auto-extracted from H1/front matter
+});
+
+// Returns: { success, pageId, title, url, version, operation, attachmentsUploaded }
+```
+
+**Manual workflow:**
+
+```typescript
+import { ConfluenceClient } from '../../confluence-client/scripts/confluence-client.js';
+import { MarkdownToConfluenceConverter } from '../../markdown-to-confluence/scripts/converter.js';
+import { extractImagesFromMarkdown } from '../../markdown-to-confluence/scripts/extractor.js';
+import * as path from 'node:path';
+import * as fs from 'node:fs';
+
+const client = new ConfluenceClient(config);
+
+// 1. Read and extract
+const markdown = fs.readFileSync(filePath, 'utf-8');
+const basePath = path.dirname(filePath);
+const images = extractImagesFromMarkdown(markdown, basePath);
+
+// 2. Create placeholder at space root
+const page = await client.createPage({
+  space, title,
+  content: "<p>Uploading images...</p>"
+});
+
+// 3. Upload and build mapping
+const imageMapping: Record<string, string> = {};
+for (const image of images) {
+  const attachment = await client.uploadAttachment(page.id, image.absolutePath);
+  imageMapping[image.originalPath] = attachment.title;
 }
+
+// 4. Convert with mapping
+const converter = new MarkdownToConfluenceConverter({ imageMapping });
+const content = converter.convert(markdown);
+
+// 5. Update page
+await client.updatePage({
+  pageId: page.id,
+  title,
+  content,
+  version: 2
+});
 ```
 
 ### Scenario B: Create Child Page (Under Parent)
 
-```javascript
-async function publishUnderParent(filePath, space, title, parentTitle) {
-  const fs = require('fs');
-  const path = require('path');
-  
-  // 1. Find parent page
-  const parentResults = await confluence_search_pages({ query: parentTitle, space });
-  if (parentResults.length === 0) throw new Error(`Parent page not found: ${parentTitle}`);
-  const parentId = parentResults[0].id;
-  
-  // 2. Read and extract
-  const markdown = fs.readFileSync(filePath, 'utf-8');
-  const basePath = path.dirname(filePath);
-  const imagePaths = extractImagePathsFromMarkdown(markdown);
-  const images = imagePaths.map(p => ({
-    originalPath: p,
-    absolutePath: path.resolve(basePath, p)
-  }));
-  
-  // 3. Create as child page
-  const { id: pageId } = await confluence_create_page({
-    space, title,
-    parentId,  // Key difference: specify parent
-    content: "<p>Uploading images...</p>"
-  });
-  
-  // 4. Upload images
-  const imageMapping = {};
-  for (const img of images) {
-    const result = await confluence_upload_attachment({ pageId, filePath: img.absolutePath });
-    imageMapping[img.originalPath] = result.filename;
-  }
-  
-  // 5. Convert and update
-  const { storageFormat } = await confluence_convert_markdown_to_storage({ markdown, imageMapping });
-  await confluence_update_page({ pageId, content: storageFormat });
-  return pageId;
-}
+```typescript
+// 1. Find parent page
+const parentResults = await client.searchPages(parentTitle, space, 1);
+const parentId = parentResults[0].id;
+
+// 2. Read and extract
+const markdown = fs.readFileSync(filePath, 'utf-8');
+const basePath = path.dirname(filePath);
+const images = extractImagesFromMarkdown(markdown, basePath);
+
+// 3. Create as child page
+const page = await client.createPage({
+  space, title,
+  parentId,  // Key difference: specify parent
+  content: "<p>Uploading images...</p>"
+});
+
+// 4. Upload images and finalize (same as Scenario A)
 ```
 
 ### Scenario C: Update Existing Page
 
-```javascript
-async function updateExistingPage(filePath, pageId) {
-  const fs = require('fs');
-  const path = require('path');
-  
-  // 1. MUST get page first (for version)
-  const page = await confluence_get_page({ pageId });
-  
-  // 2. Get existing attachments
-  const existing = await confluence_get_page_attachments({ pageId });
-  const existingFiles = new Set(existing.map(a => a.title));
-  
-  // 3. Read and extract
-  const markdown = fs.readFileSync(filePath, 'utf-8');
-  const basePath = path.dirname(filePath);
-  const imagePaths = extractImagePathsFromMarkdown(markdown);
-  const images = imagePaths.map(p => ({
-    originalPath: p,
-    absolutePath: path.resolve(basePath, p)
-  }));
-  
-  // 4. Upload only new images
-  const imageMapping = {};
-  for (const img of images) {
-    const filename = path.basename(img.absolutePath);
-    if (existingFiles.has(filename)) {
-      imageMapping[img.originalPath] = filename;
-    } else {
-      const result = await confluence_upload_attachment({ pageId, filePath: img.absolutePath });
-      imageMapping[img.originalPath] = result.filename;
-    }
+```typescript
+// 1. MUST get page first (for version)
+const page = await client.getPageById(pageId);
+
+// 2. Get existing attachments
+const existing = await client.getPageAttachments(page.id);
+const existingFiles = new Set(existing.map(a => a.title));
+
+// 3. Read and extract
+const markdown = fs.readFileSync(filePath, 'utf-8');
+const basePath = path.dirname(filePath);
+const images = extractImagesFromMarkdown(markdown, basePath);
+
+// 4. Upload only new images
+const imageMapping: Record<string, string> = {};
+for (const image of images) {
+  const filename = path.basename(image.absolutePath);
+  if (existingFiles.has(filename)) {
+    imageMapping[image.originalPath] = filename;
+  } else {
+    const attachment = await client.uploadAttachment(page.id, image.absolutePath);
+    imageMapping[image.originalPath] = attachment.title;
   }
-  
-  // 5. Convert and update
-  const { storageFormat } = await confluence_convert_markdown_to_storage({ markdown, imageMapping });
-  await confluence_update_page({ pageId, content: storageFormat });
 }
+
+// 5. Convert and update
+const converter = new MarkdownToConfluenceConverter({ imageMapping });
+const content = converter.convert(markdown);
+await client.updatePage({
+  pageId: page.id,
+  title,
+  content,
+  version: page.version.number + 1
+});
 ```
 
 ## Image Mapping Explained
 
 The `imageMapping` tells the converter how to replace local paths:
 
-```javascript
+```typescript
 // Original markdown:
 // ![Screenshot](./images/screenshot.png)
 
@@ -258,27 +292,31 @@ const imageMapping = {
 ## Attachment Upload Methods
 
 ### Method 1: File Path (Local Files)
-```javascript
-await confluence_upload_attachment({
-  pageId: "12345",
-  filePath: "/path/to/image.png"
-});
+
+```typescript
+const attachment = await client.uploadAttachment(
+  pageId,
+  '/path/to/image.png',
+  'Optional comment'
+);
+// Returns: { id, title, mediaType, fileSize, _links }
 ```
 
-### Method 2: Base64 Content (Generated/Remote)
-```javascript
-const fs = require('fs');
-const imageBuffer = fs.readFileSync('/path/to/image.png');
-const base64Content = imageBuffer.toString('base64');
+### Method 2: Buffer (Generated/Remote)
 
-await confluence_upload_attachment({
-  pageId: "12345",
-  filename: "image.png",
-  contentBase64: base64Content
-});
+```typescript
+const fs = await import('node:fs');
+const buffer = fs.readFileSync('/path/to/image.png');
+
+const attachment = await client.uploadAttachmentFromBuffer(
+  pageId,
+  'image.png',
+  buffer,
+  'Optional comment'
+);
 ```
 
-**Use base64 when:**
+**Use buffer method when:**
 - Generating images dynamically (charts, diagrams)
 - Processing remote URLs
 - Working with in-memory buffers
@@ -289,7 +327,8 @@ await confluence_upload_attachment({
 |---------|-------------|---------|
 | Convert before upload | Paths not replaced | Upload first, then convert with mapping |
 | No imageMapping param | Local paths remain | Always pass imageMapping |
-| Use original filenames | Confluence may rename | Use `result.filename` from upload |
+| Use original filenames | Confluence may rename | Use `attachment.title` from upload result |
+| Forget to get page before update | Version conflict | Always get page first to get current version |
 
 ## Edge Cases
 
@@ -301,38 +340,37 @@ await confluence_upload_attachment({
 ## Error Handling Best Practices
 
 ### Pre-flight Checks
-```javascript
-const fs = require('fs');
+
+```typescript
+import * as fs from 'node:fs';
 
 // Check files exist before upload
-for (const img of images) {
-  if (!fs.existsSync(img.absolutePath)) {
-    throw new Error(`Missing image: ${img.originalPath}`);
+for (const image of images) {
+  if (!fs.existsSync(image.absolutePath)) {
+    throw new Error(`Missing image: ${image.originalPath}`);
   }
 }
 
 // Check file size (< 100MB)
-for (const img of images) {
-  const stats = fs.statSync(img.absolutePath);
+for (const image of images) {
+  const stats = fs.statSync(image.absolutePath);
   if (stats.size > 100 * 1024 * 1024) {
-    throw new Error(`File too large: ${img.originalPath}`);
+    throw new Error(`File too large: ${image.originalPath}`);
   }
 }
 ```
 
 ### Graceful Upload with Fallback
-```javascript
-const imageMapping = {};
 
-for (const img of images) {
+```typescript
+const imageMapping: Record<string, string> = {};
+
+for (const image of images) {
   try {
-    const result = await confluence_upload_attachment({
-      pageId,
-      filePath: img.absolutePath
-    });
-    imageMapping[img.originalPath] = result.filename;
+    const attachment = await client.uploadAttachment(pageId, image.absolutePath);
+    imageMapping[image.originalPath] = attachment.title;
   } catch (err) {
-    console.warn(`Failed to upload ${img.originalPath}: ${err.message}`);
+    console.warn(`Failed to upload ${image.originalPath}: ${err.message}`);
     // Image will remain as text in final page
   }
 }

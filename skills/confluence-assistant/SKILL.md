@@ -1,44 +1,53 @@
 ---
 name: confluence-assistant
-description: "Complete Confluence (KMS) operations assistant using MCP tools. Use for: searching pages, creating/updating pages, publishing Markdown with images, managing attachments, comments, and permissions. Triggers: 'Confluence/KMS', 'publish to', 'upload to', 'create page', 'update page', 'search Confluence', 'Confluence attachment', 'page permission'"
+description: Complete Confluence operations assistant using direct TypeScript clients (confluence-client and markdown-to-confluence skills). Use for searching pages, creating/updating pages, publishing Markdown with images, managing attachments, comments, and permissions. Triggers - Confluence/KMS operations, publish to Confluence, upload to Confluence, create/update Confluence pages.
 ---
 
 # Confluence Assistant
 
-All Confluence operations through MCP tools from `mcp-tools-layered`.
+Complete Confluence operations using direct TypeScript clients. No MCP overhead - pure skill-to-skill communication for maximum performance.
 
-## Architecture Overview
+## Architecture
 
 ```
-Presentation Layer (MCP Tools)
+User Request
     ↓
-Application Layer (Use Cases)
+Confluence Assistant (this skill)
     ↓
-Domain Layer (Repository)
-    ↓
-Infrastructure Layer (HTTP Client)
+┌─────────────────┐  ┌──────────────────────┐
+│ confluence-client│  │ markdown-to-confluence│
+│  - API calls     │  │  - Markdown conversion │
+│  - Page management│ │  - Image processing    │
+│  - Attachments   │  │  - Publishing workflow │
+└─────────────────┘  └──────────────────────┘
 ```
 
-**Layered Architecture Benefits:**
-- Clear separation of concerns
-- Independent testing of each layer
-- Easy to extend with new tools
+**Benefits over MCP approach:**
+- No tool call overhead
+- Direct function calls
+- Type-safe throughout
+- Simpler error handling
+
+## Prerequisites
+
+**REQUIRED: Load these skills first:**
+- `confluence-client` - For all Confluence API operations
+- `markdown-to-confluence` - For Markdown publishing with images
 
 ## Quick Decision
 
-| User Says | Primary Tool |
-|-----------|-------------|
-| "Search/find pages" | `confluence_search_pages` |
-| "Get page content" | `confluence_get_page` |
-| "List spaces" | `confluence_list_spaces` |
-| "Create page" | `confluence_create_page` or `confluence_upsert_page` |
-| "Update/sync page" | `confluence_get_page` → `confluence_update_page` |
+| User Says | Primary Action |
+|-----------|---------------|
+| "Search/find pages" | `client.searchPages()` |
+| "Get page content" | `client.getPageById()` or `client.getPageByTitle()` |
+| "List spaces" | `client.listSpaces()` |
+| "Create page" | `client.createPage()` or `client.upsertPage()` |
+| "Update/sync page" | `client.getPageById()` → `client.updatePage()` |
 | **"Publish markdown"** | See [Publishing Workflow](references/publishing-workflow.md) |
-| "Upload file" | `confluence_upload_attachment` |
-| "Delete page" | `confluence_delete_page` |
-| "Copy page" | `confluence_copy_page` |
-| "Add comment" | `confluence_add_comment` |
-| "Set permissions" | `confluence_set_page_restriction` |
+| "Upload file" | `client.uploadAttachment()` |
+| "Delete page" | `client.deletePage()` |
+| "Add comment" | `client.addComment()` |
+| "Set permissions" | `client.setPageRestriction()` |
 
 ## Publishing Intent Decision
 
@@ -67,8 +76,7 @@ Infrastructure Layer (HTTP Client)
 
 ### Step 2: Check if target page exists
 
-### Step 2: Check if target page exists
-Use: `confluence_search_pages({ space, query: title })`
+Use: `client.searchPages(query, space)`
 
 ### Step 3: Ask user for clarification (MANDATORY)
 **无论页面是否存在，都必须询问用户意图：**
@@ -80,202 +88,264 @@ Use: `confluence_search_pages({ space, query: title })`
 
 **REQUIREMENT: 必须等待用户明确选择后才能继续操作**
 
-### Intent Examples
+## Core Usage
 
-| User Request | Page Exists? | Action Required | Result |
-|--------------|--------------|-----------------|--------|
-| "上传到 Teams/项目规划" | Yes | **ASK USER** → 选择更新或创建子页面 | 根据用户选择 |
-| "上传到 Teams/项目规划" | No | **ASK USER** → 选择根目录创建或指定父页面 | 根据用户选择 |
-| "上传到 Teams/设计 目录下" | Yes | **ASK USER** → 选择更新或在该页面下创建子页面 | 根据用户选择 |
-| "上传到 Teams/设计 目录下" | No | **ASK USER** → 父页面不存在，选择根目录创建或指定其他父页面 | 根据用户选择 |
-| "同步到 https://.../TEST" | Yes | **ASK USER** → 通常更新，但需确认 | 根据用户选择 |
+### Initialize Client
 
-**CRITICAL RULES:**
-1. **永远不要假设用户意图** - 即使看起来很明显
-2. **页面存在 + 用户说"目录下"** → 仍然要问：是更新还是创建子页面
-3. **等待用户明确回复** → 收到确认后再执行具体操作
+```typescript
+import { ConfluenceClient } from '../confluence-client/scripts/confluence-client.js';
 
-## Available Tools
-
-**Query:** `confluence_list_spaces`, `confluence_search_pages`, `confluence_get_page`, `confluence_get_child_pages`, `confluence_get_page_history`
-
-**Pages:** `confluence_create_page`, `confluence_update_page`, `confluence_upsert_page`, `confluence_delete_page`, `confluence_copy_page`
-
-**Attachments:** `confluence_upload_attachment`, `confluence_get_page_attachments`
-
-**Comments:** `confluence_add_comment`, `confluence_get_page_comments`
-
-**Permissions:** `confluence_set_page_restriction`
-
-**Markdown:** `confluence_convert_markdown_to_storage`, `confluence_build_code_macro`
-
-**注意**: 图片抽取需通过大模型手动分析 Markdown 内容完成，工具本身不提供自动图片抽取功能。
-
-## CRITICAL Constraints
-
-1. **MUST get page before update**: Always call `confluence_get_page` before `confluence_update_page`
-2. **Markdown publishing order** (see [publishing-workflow.md](references/publishing-workflow.md)):
-   - Manual extract images (LLM parse) → Create page → Upload images → Build mapping → Convert with mapping → Update
-3. **Image mapping required**: Pass `imageMapping` to `confluence_convert_markdown_to_storage` so paths are replaced with attachment references
-4. **Upload before convert**: Must upload images first to get actual attachment filenames (Confluence may rename duplicates)
-
-See [references/mcp-tools-complete.md](references/mcp-tools-complete.md) for all tool parameters.
-
-## Common Examples
-
-### Search and get page
-```javascript
-const { results } = await confluence_search_pages({ query: "roadmap", limit: 5 });
-const page = await confluence_get_page({ pageId: results[0].id });
-```
-
-### Create page
-```javascript
-await confluence_create_page({
-  space: "DEV",
-  title: "Meeting Notes",
-  content: "<h1>Meeting Notes</h1><p></p>"
+const client = new ConfluenceClient({
+  baseUrl: 'https://company.atlassian.net/wiki',
+  username: 'user@example.com',
+  apiToken: 'your-api-token'
 });
 ```
 
-### Update page (MUST get first!)
-```javascript
-await confluence_get_page({ pageId: "12345" });  // Get version
-await confluence_update_page({
-  pageId: "12345",
-  content: "<h1>Updated</h1>..."
+### Search and Get Page
+
+```typescript
+// Search pages
+const results = await client.searchPages('roadmap', 'DEV', 10);
+
+// Get by ID
+const page = await client.getPageById('123456');
+
+// Get by title
+const page = await client.getPageByTitle('DEV', 'My Page');
+```
+
+### Create Page
+
+```typescript
+// Create at space root
+const page = await client.createPage({
+  space: 'DEV',
+  title: 'New Page',
+  content: '<h1>New Page</h1><p>Content</p>',
+  parentId: '789012' // optional
+});
+
+// Or use upsert (create if not exists, update if exists)
+const { page, created } = await client.upsertPage({
+  space: 'DEV',
+  title: 'My Page',
+  content: '<h1>Content</h1>'
 });
 ```
 
-### Upload attachment (File Path)
-```javascript
-await confluence_upload_attachment({
-  pageId: "12345",
-  filePath: "/path/to/file.pdf"
+### Update Page
+
+```typescript
+// Must get page first to get version
+const page = await client.getPageById('123456');
+
+// Then update
+const updated = await client.updatePage({
+  pageId: '123456',
+  title: 'Updated Title',
+  content: '<h1>Updated</h1>',
+  version: page.version.number + 1
 });
 ```
 
-### Upload attachment (Base64 Content)
-```javascript
-const fs = require('fs');
-const buffer = fs.readFileSync("/path/to/file.pdf");
-const base64 = buffer.toString('base64');
+### Upload Attachment
 
-await confluence_upload_attachment({
-  pageId: "12345",
-  filename: "file.pdf",
-  contentBase64: base64
-});
+```typescript
+// From file path
+const attachment = await client.uploadAttachment(
+  'page-id',
+  '/path/to/file.pdf',
+  'Optional comment'
+);
+
+// From buffer
+const fs = await import('node:fs');
+const buffer = fs.readFileSync('/path/to/file.pdf');
+const attachment = await client.uploadAttachmentFromBuffer(
+  'page-id',
+  'file.pdf',
+  buffer
+);
 ```
 
-### Publish Markdown with images
+## Publish Markdown (Complete Workflow)
 
-**完整流程（必须先询问用户）：**
+**REQUIRED: Use `ConfluencePublisher` from markdown-to-confluence skill**
 
-```javascript
-// === PHASE 1: 意图确认 (MANDATORY) ===
-// 1. 搜索目标页面
-const results = await confluence_search_pages({ space: "Teams", query: "项目规划" });
-const exists = results.length > 0;
+### Simple Publish
 
-// 2. 询问用户意图
-if (exists) {
-  // 询问：更新还是创建子页面？
-  const userChoice = await askUser("页面已存在，请选择：\n1. 更新现有页面\n2. 在该页面下创建子页面");
-} else {
-  // 询问：创建到根目录还是指定父页面？
-  const userChoice = await askUser("页面不存在，请选择：\n1. 创建到空间根目录\n2. 作为其他页面的子页面");
+```typescript
+import { ConfluencePublisher } from '../markdown-to-confluence/scripts/publisher.js';
+
+const publisher = new ConfluencePublisher(client);
+
+// Publish with auto title extraction
+const result = await publisher.publish({
+  markdown: '# Hello\n\nContent here',
+  space: 'DEV',
+  title: 'Optional Title',  // Or auto-extract from H1/front matter
+  parentId: '123456'        // Optional
+});
+
+// Result:
+// {
+//   success: true,
+//   pageId: '123456',
+//   title: 'Hello',
+//   url: 'https://...',
+//   version: 1,
+//   operation: 'created',
+//   attachmentsUploaded: 2
+// }
+```
+
+### Multi-page Publish
+
+```typescript
+const requests = [
+  { markdown: '# Page 1', space: 'DEV', title: 'Page 1' },
+  { markdown: '# Page 2', space: 'DEV', title: 'Page 2' }
+];
+
+const results = await publisher.publishMultiple(requests, { concurrency: 3 });
+```
+
+## Step-by-Step Manual Workflow
+
+If you need fine-grained control over the publishing process:
+
+```typescript
+import { ConfluenceClient } from '../confluence-client/scripts/confluence-client.js';
+import { MarkdownToConfluenceConverter } from '../markdown-to-confluence/scripts/converter.js';
+import { extractImagesFromMarkdown } from '../markdown-to-confluence/scripts/extractor.js';
+
+// 1. Setup client
+const client = new ConfluenceClient(config);
+
+// 2. Extract images
+const images = extractImagesFromMarkdown(markdown, './docs');
+
+// 3. Create page first (to get pageId for attachments)
+let page = await client.createPage({
+  space: 'DEV',
+  title: 'My Document',
+  content: '<p>Loading...</p>'
+});
+
+// 4. Upload images and build mapping
+const imageMapping: Record<string, string> = {};
+for (const image of images) {
+  const attachment = await client.uploadAttachment(page.id, image.absolutePath);
+  imageMapping[image.originalPath] = attachment.title;
 }
 
-// === PHASE 2: 根据选择执行 ===
+// 5. Convert markdown with image mapping
+const converter = new MarkdownToConfluenceConverter({
+  addTocMacro: true,
+  imageMapping
+});
+const content = converter.convert(markdown);
 
-// **选项 A: 更新现有页面**
-if (userChoice === "update") {
-  const page = await confluence_get_page({ space: "Teams", title: "项目规划" });
-  const existing = await confluence_get_page_attachments({ pageId: page.id });
-  const existingFiles = new Set(existing.map(a => a.title));
-  
-  // 提取并上传图片
-  const imagePaths = extractImagePathsFromMarkdown(markdown);
-  const imageMapping = {};
-  for (const imgPath of imagePaths) {
-    const absolutePath = resolvePath(imgPath, basePath);
-    const filename = path.basename(absolutePath);
-    if (existingFiles.has(filename)) {
-      imageMapping[imgPath] = filename;
-    } else {
-      const result = await confluence_upload_attachment({ pageId: page.id, filePath: absolutePath });
-      imageMapping[imgPath] = result.filename;
-    }
+// 6. Update page with content
+page = await client.updatePage({
+  pageId: page.id,
+  title: 'My Document',
+  content,
+  version: 2
+});
+```
+
+## Complete Publishing Examples
+
+### Example 1: Update Existing Page with Images
+
+```typescript
+import { ConfluenceClient } from '../confluence-client/scripts/confluence-client.js';
+import { MarkdownToConfluenceConverter } from '../markdown-to-confluence/scripts/converter.js';
+import { extractImagesFromMarkdown } from '../markdown-to-confluence/scripts/extractor.js';
+import * as path from 'node:path';
+
+const client = new ConfluenceClient(config);
+
+// 1. Get existing page
+const page = await client.getPageByTitle('DEV', 'My Page');
+
+// 2. Get existing attachments
+const existing = await client.getPageAttachments(page.id);
+const existingFiles = new Set(existing.map(a => a.title));
+
+// 3. Extract images from markdown
+const images = extractImagesFromMarkdown(markdown, './docs');
+
+// 4. Upload only new images
+const imageMapping: Record<string, string> = {};
+for (const image of images) {
+  const filename = path.basename(image.absolutePath);
+  if (existingFiles.has(filename)) {
+    imageMapping[image.originalPath] = filename;
+  } else {
+    const attachment = await client.uploadAttachment(page.id, image.absolutePath);
+    imageMapping[image.originalPath] = attachment.title;
   }
-  
-  // 更新页面
-  const { storageFormat } = await confluence_convert_markdown_to_storage({ markdown, imageMapping });
-  await confluence_update_page({ pageId: page.id, content: storageFormat });
 }
 
-// **选项 B: 创建子页面**
-else if (userChoice === "create_child") {
-  // 1. 找到父页面
-  const parentResults = await confluence_search_pages({ space: "Teams", query: "项目规划" });
-  const parentId = parentResults[0].id;
+// 5. Convert and update
+const converter = new MarkdownToConfluenceConverter({ imageMapping });
+const content = converter.convert(markdown);
 
-  // 2. 提取新页面标题（按优先级：frontmatter title > 文件名 yyyymmdd-xx > H1 > 文件名）
-  const newTitle = extractTitleFromMarkdown(markdown, sourceFilePath);
-  // 例如：文件 260303-fineReport-overview.md → 标题 "260303"
+await client.updatePage({
+  pageId: page.id,
+  title: page.title,
+  content,
+  version: page.version.number + 1
+});
+```
 
-  // 3. 创建子页面
-  const { id: pageId } = await confluence_create_page({
-    space: "Teams",
-    title: newTitle,
-    parentId,
-    content: "<p>Loading...</p>"
-  });
-  
-  // 3. 提取并上传图片
-  const imagePaths = extractImagePathsFromMarkdown(markdown);
-  const imageMapping = {};
-  for (const imgPath of imagePaths) {
-    const absolutePath = resolvePath(imgPath, basePath);
-    const result = await confluence_upload_attachment({ pageId, filePath: absolutePath });
-    imageMapping[imgPath] = result.filename;
+### Example 2: Create Child Page
+
+```typescript
+// 1. Find parent page
+const parentResults = await client.searchPages('项目规划', 'Teams', 1);
+const parentId = parentResults[0].id;
+
+// 2. Extract title from markdown
+import { extractTitleFromMarkdown } from '../markdown-to-confluence/scripts/extractor.js';
+const title = extractTitleFromMarkdown(markdown) || 'Untitled';
+
+// 3. Create child page
+const { id: pageId } = await client.createPage({
+  space: 'Teams',
+  title,
+  parentId,
+  content: '<p>Loading...</p>'
+});
+
+// 4. Upload images and finalize (see Example 1)
+```
+
+## Error Handling
+
+```typescript
+import { NotFoundError, ValidationError, AuthenticationError } from '../confluence-client/scripts/confluence-client.js';
+
+try {
+  await client.getPageById('invalid-id');
+} catch (error) {
+  if (error instanceof NotFoundError) {
+    console.log('Page not found');
+  } else if (error instanceof AuthenticationError) {
+    console.log('Check your credentials');
+  } else {
+    console.error('Unexpected error:', error);
   }
-  
-  // 4. 更新页面内容
-  const { storageFormat } = await confluence_convert_markdown_to_storage({ markdown, imageMapping });
-  await confluence_update_page({ pageId, content: storageFormat });
-}
-
-// **选项 C: 创建到根目录**
-else if (userChoice === "create_root") {
-  // 1. 提取新页面标题（按优先级：frontmatter title > 文件名 yyyymmdd-xx > H1 > 文件名）
-  const newTitle = extractTitleFromMarkdown(markdown, sourceFilePath);
-
-  // 2. 在根目录创建页面
-  const { id: pageId } = await confluence_create_page({
-    space: "Teams",
-    title: newTitle,
-    content: "<p>Loading...</p>"
-  });
-  
-  // 2. 提取并上传图片
-  const imagePaths = extractImagePathsFromMarkdown(markdown);
-  const imageMapping = {};
-  for (const imgPath of imagePaths) {
-    const absolutePath = resolvePath(imgPath, basePath);
-    const result = await confluence_upload_attachment({ pageId, filePath: absolutePath });
-    imageMapping[imgPath] = result.filename;
-  }
-  
-  // 3. 更新页面内容
-  const { storageFormat } = await confluence_convert_markdown_to_storage({ markdown, imageMapping });
-  await confluence_update_page({ pageId, content: storageFormat });
 }
 ```
 
 ## References
 
-- [mcp-tools-complete.md](references/mcp-tools-complete.md) - All MCP tools with full parameters
 - [publishing-workflow.md](references/publishing-workflow.md) - Core workflow (REQUIRED for image uploads)
 - [publishing-examples.md](references/publishing-examples.md) - Detailed examples and edge cases
 - [troubleshooting.md](references/troubleshooting.md) - Common issues and solutions
+- `../confluence-client/SKILL.md` - Full API reference
+- `../markdown-to-confluence/SKILL.md` - Markdown conversion reference
