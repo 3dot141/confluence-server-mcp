@@ -1,4 +1,4 @@
-import { codeMacro, info, warning, tip, note, tocMacro, escapeXml } from "./macros.js";
+import { codeMacro, info, warning, tip, note, tocMacro, table, escapeXml } from "./macros.js";
 export class MarkdownToConfluenceConverter {
     options;
     constructor(options = {}) {
@@ -25,6 +25,8 @@ export class MarkdownToConfluenceConverter {
     convert(markdown) {
         // Extract front matter
         markdown = this.extractFrontMatter(markdown);
+        // Remove emojis from entire markdown (including code blocks)
+        markdown = this.removeEmojis(markdown);
         const parts = [];
         // Add TOC if enabled
         if (this.options.addTocMacro) {
@@ -88,6 +90,8 @@ export class MarkdownToConfluenceConverter {
         markdown = this.convertBlockquotes(markdown);
         // Convert headings
         markdown = this.convertHeadings(markdown);
+        // Convert tables BEFORE lists and inline
+        markdown = this.convertTables(markdown);
         // Convert lists BEFORE inline
         markdown = this.convertLists(markdown);
         // Convert images BEFORE inline (so they don't become links)
@@ -193,6 +197,77 @@ export class MarkdownToConfluenceConverter {
             markdown = markdown.replace(pattern, `<h${level}>$1</h${level}>`);
         }
         return markdown;
+    }
+    convertTables(markdown) {
+        const lines = markdown.split("\n");
+        const result = [];
+        let inTable = false;
+        let tableLines = [];
+        const parseTable = (lines) => {
+            if (lines.length < 2)
+                return lines.join("\n");
+            // Parse header row
+            const headerLine = lines[0].trim();
+            const headers = headerLine
+                .split("|")
+                .map(h => escapeXml(h.trim()))
+                .filter(h => h.length > 0);
+            // Skip separator line (line 1)
+            // Parse data rows
+            const rows = [];
+            for (let i = 2; i < lines.length; i++) {
+                const rowLine = lines[i].trim();
+                if (!rowLine.startsWith("|") || rowLine === "|")
+                    break;
+                // Split by | and trim
+                const rawCells = rowLine.split("|").map(c => c.trim());
+                // Filter out empty first/last elements from split (caused by leading/trailing |)
+                const nonEmptyCells = rawCells.filter((cell, idx, arr) => {
+                    const isFirst = idx === 0;
+                    const isLast = idx === arr.length - 1;
+                    // Keep if not (first or last) OR if it has content
+                    return !(isFirst || isLast) || cell.length > 0;
+                });
+                // Convert inline formatting for each cell
+                const cells = nonEmptyCells.map(c => this.convertInline(c));
+                // Ensure we have the right number of cells
+                while (cells.length < headers.length) {
+                    cells.push("");
+                }
+                while (cells.length > headers.length) {
+                    cells.pop();
+                }
+                rows.push(cells);
+            }
+            return table(headers, rows);
+        };
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const trimmed = line.trim();
+            // Check if line looks like a table row
+            if (trimmed.startsWith("|") && trimmed.includes("|", 1)) {
+                if (!inTable) {
+                    inTable = true;
+                    tableLines = [line];
+                }
+                else {
+                    tableLines.push(line);
+                }
+            }
+            else {
+                if (inTable) {
+                    // End of table
+                    result.push(parseTable(tableLines));
+                    inTable = false;
+                    tableLines = [];
+                }
+                result.push(line);
+            }
+        }
+        if (inTable) {
+            result.push(parseTable(tableLines));
+        }
+        return result.join("\n");
     }
     convertLists(markdown) {
         const lines = markdown.split("\n");
@@ -354,6 +429,15 @@ export class MarkdownToConfluenceConverter {
     extractH1Title(markdown) {
         const match = markdown.match(/^#\s+(.+)$/m);
         return match ? match[1].trim() : undefined;
+    }
+    removeEmojis(text) {
+        // Remove Unicode emojis (various emoji ranges including symbols and arrows)
+        // eslint-disable-next-line no-misleading-character-class
+        const emojiRegex = /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F018}-\u{1F270}]|[\u{238C}]|[\u{1F191}-\u{1F251}]|[\u{1F004}]|[\u{1F0CF}]|[\u{1F170}-\u{1F251}]|[\u{200D}]|[\u{FE0F}]|[\u{E0000}-\u{E007F}]|[\u{2190}-\u{21FF}]|[\u{2B00}-\u{2BFF}]|[\u{2300}-\u{23FF}]/gu;
+        // Remove emoji shortcodes like :smile:, :rocket:, etc.
+        const shortcodeRegex = /:\w+:/g;
+        // Remove emojis and clean up any double spaces left behind
+        return text.replace(emojiRegex, '').replace(shortcodeRegex, '').replace(/ +/g, ' ');
     }
 }
 //# sourceMappingURL=converter.js.map
