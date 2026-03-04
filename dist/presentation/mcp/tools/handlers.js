@@ -1,6 +1,5 @@
 // src/presentation/mcp/tools/handlers.ts
-import { spaceUseCases, pageUseCases, attachmentUseCases, commentUseCases, permissionUseCases, conversionUseCases, } from "../../../application/usecases/index.js";
-import { mermaidPublishUseCase } from '../../../application/usecases/mermaid-publish.js';
+import { spaceUseCases, pageUseCases, attachmentUseCases, commentUseCases, permissionUseCases, } from "../../../application/usecases/index.js";
 import { publishCompleteUseCase } from '../../../application/usecases/publish-complete.js';
 import { codeMacro } from "../../../domain/markdown/macros.js";
 import { ConfluenceError } from "../../../infrastructure/errors.js";
@@ -126,39 +125,10 @@ export async function handleToolCall(name, args) {
                 });
                 return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
             }
-            // Conversion tools
-            case "confluence_convert_markdown_to_storage": {
-                const result = conversionUseCases.convertMarkdownToStorage({
-                    markdown: args.markdown,
-                    addToc: args.addToc,
-                    imageMapping: args.imageMapping,
-                    basePath: args.basePath
-                });
-                return {
-                    content: [{
-                            type: "text",
-                            text: JSON.stringify(result, null, 2)
-                        }]
-                };
-            }
             // Code macro
             case "confluence_build_code_macro": {
                 const macro = codeMacro(args.code, args.language);
                 return { content: [{ type: "text", text: macro }] };
-            }
-            case "confluence_process_mermaid_diagrams": {
-                const result = await mermaidPublishUseCase.process({
-                    pageId: args.pageId,
-                    markdown: args.markdown,
-                    theme: args.theme || 'default',
-                    bgColor: args.bgColor
-                });
-                return {
-                    content: [{
-                            type: "text",
-                            text: JSON.stringify(result, null, 2)
-                        }]
-                };
             }
             case "confluence_publish_complete": {
                 const result = await publishCompleteUseCase.execute({

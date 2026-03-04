@@ -16,10 +16,29 @@ export class RemarkMarkdownParser {
         return markdown.replace(/!\[\[([^\]]+)\]\]/g, '![$1]($1)');
     }
     /**
+     * Preprocess blockquote markers to ensure proper detection
+     */
+    preprocessBlockquoteMarkers(markdown) {
+        // Convert emoji + text to marker format for consistency
+        return markdown
+            .replace(/^>\s*[ℹ️]\s*/gm, '> !info ')
+            .replace(/^>\s*[⚠️]\s*/gm, '> !warning ')
+            .replace(/^>\s*[💡]\s*/gm, '> !tip ')
+            .replace(/^>\s*[📝]\s*/gm, '> !note ');
+    }
+    /**
      * Parse markdown to AST with preprocessing
      */
     parse(markdown) {
         const preprocessed = this.preprocessObsidianSyntax(markdown);
+        return this.parser.parse(preprocessed);
+    }
+    /**
+     * Parse with full preprocessing including blockquote markers
+     */
+    parseFull(markdown) {
+        let preprocessed = this.preprocessObsidianSyntax(markdown);
+        preprocessed = this.preprocessBlockquoteMarkers(preprocessed);
         return this.parser.parse(preprocessed);
     }
     /**
@@ -103,6 +122,38 @@ export class RemarkMarkdownParser {
                 }
             }
         });
+    }
+    /**
+     * Detect blockquote with special markers (!info, !warning, etc.)
+     */
+    detectBlockquoteMarker(node) {
+        const firstChild = node.children[0];
+        if (firstChild?.type !== 'paragraph')
+            return null;
+        const firstText = firstChild.children[0];
+        if (firstText?.type !== 'text')
+            return null;
+        const text = firstText.value.trim();
+        if (text.startsWith('!info') || text.startsWith('ℹ️'))
+            return 'info';
+        if (text.startsWith('!warning') || text.startsWith('⚠️'))
+            return 'warning';
+        if (text.startsWith('!tip') || text.startsWith('💡'))
+            return 'tip';
+        if (text.startsWith('!note') || text.startsWith('📝'))
+            return 'note';
+        return null;
+    }
+    /**
+     * Remove marker from blockquote text
+     */
+    cleanBlockquoteText(node) {
+        const firstChild = node.children[0];
+        const firstText = firstChild.children[0];
+        // Remove marker prefix
+        firstText.value = firstText.value
+            .replace(/^!(info|warning|tip|note)\s*/i, '')
+            .replace(/^[ℹ️⚠️💡📝]\s*/, '');
     }
     /**
      * Check if HTML is a Confluence macro

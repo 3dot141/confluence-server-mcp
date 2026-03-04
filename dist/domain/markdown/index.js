@@ -1,7 +1,10 @@
 // src/domain/markdown/index.ts
-export * from "./types.js";
-export * from "./macros.js";
-export * from "./image-processor.js";
-export * from "./converter.js";
+// Re-export AST converter as the primary converter
+export { ASTMarkdownToConfluenceConverter } from './ast-converter.js';
+// Macros
+export { escapeXml, escapeXmlAttr, codeMacro, info, warning, tip, note, tocMacro, table } from './macros.js';
+// Image processor (legacy support)
+export { extractImagesFromMarkdown } from './image-processor.js';
+// Extractor with explicit naming to avoid conflicts
 export { MarkdownImageExtractor } from './extractor.js';
 //# sourceMappingURL=index.js.map

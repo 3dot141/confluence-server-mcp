@@ -21,9 +21,10 @@ export class PublishCompleteUseCase {
         const errors = [];
         try {
             logger.info('Starting publish-complete', { title: input.title, space: input.space });
-            // 1. Preprocess markdown (Obsidian syntax)
+            // 1. Preprocess markdown (Obsidian syntax, blockquote markers)
             let markdown = input.markdown;
             markdown = this.parser.preprocessObsidianSyntax(markdown);
+            markdown = this.parser.preprocessBlockquoteMarkers(markdown);
             // 2. Parse AST and extract resources (single-pass)
             const ast = this.parser.parse(markdown);
             const resources = this.parser.extractResources(ast);

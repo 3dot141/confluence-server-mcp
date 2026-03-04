@@ -1,8 +1,12 @@
 // src/application/usecases/conversion.ts
-import { MarkdownToConfluenceConverter, MarkdownImageExtractor } from '../../domain/markdown/index.js';
+import { ASTMarkdownToConfluenceConverter } from '../../domain/markdown/ast-converter.js';
+import { RemarkMarkdownParser } from '../../infrastructure/markdown/remark-parser.js';
+/**
+ * Unified conversion use cases using AST-based converter
+ */
 export class ConversionUseCases {
     convertMarkdownToStorage(input) {
-        const converter = new MarkdownToConfluenceConverter({
+        const converter = new ASTMarkdownToConfluenceConverter({
             addTocMacro: input.addToc ?? true,
             imageMapping: input.imageMapping || {},
             basePath: input.basePath
@@ -14,8 +18,17 @@ export class ConversionUseCases {
         };
     }
     extractImagesFromMarkdown(input) {
-        const extractor = new MarkdownImageExtractor(input.basePath);
-        return extractor.extract(input.markdown);
+        const parser = new RemarkMarkdownParser();
+        const ast = parser.parse(input.markdown);
+        const resources = parser.extractResources(ast);
+        return {
+            images: resources.images.map(img => ({
+                src: img.src,
+                isLocal: img.isLocal
+            })),
+            localCount: resources.images.filter(img => img.isLocal).length,
+            urlCount: resources.images.filter(img => !img.isLocal).length
+        };
     }
 }
 export const conversionUseCases = new ConversionUseCases();

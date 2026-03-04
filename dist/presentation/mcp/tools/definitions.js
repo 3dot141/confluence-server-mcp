@@ -192,34 +192,6 @@ export const toolDefinitions = [
         }
     },
     {
-        name: "confluence_convert_markdown_to_storage",
-        description: "Convert Markdown to Confluence Storage Format (HTML). Note: This is a conversion tool, not an API tool. Use the returned storageFormat with confluence_create_page or confluence_update_page.",
-        inputSchema: {
-            type: "object",
-            properties: {
-                markdown: {
-                    type: "string",
-                    description: "Markdown content to convert"
-                },
-                addToc: {
-                    type: "boolean",
-                    description: "Add table of contents macro",
-                    default: true
-                },
-                imageMapping: {
-                    type: "object",
-                    description: "Optional mapping of local image paths to Confluence attachment URLs: {localPath: attachmentUrl}",
-                    additionalProperties: { type: "string" }
-                },
-                basePath: {
-                    type: "string",
-                    description: "Base path for resolving relative image paths (default: current working directory)"
-                }
-            },
-            required: ["markdown"]
-        }
-    },
-    {
         name: "confluence_build_code_macro",
         description: "[FORMAT CONVERSION TOOL] Generate a Confluence code macro in Storage Format. This is a utility for building Confluence content, not an API operation.",
         inputSchema: {
@@ -231,34 +203,6 @@ export const toolDefinitions = [
                 collapse: { type: "boolean", description: "Collapse by default", default: false }
             },
             required: ["code"]
-        }
-    },
-    {
-        name: "confluence_process_mermaid_diagrams",
-        description: "处理 Markdown 中的所有 Mermaid 图表，渲染为图片并上传为附件，失败时保留原代码块",
-        inputSchema: {
-            type: "object",
-            properties: {
-                pageId: {
-                    type: "string",
-                    description: "要上传附件的目标页面 ID"
-                },
-                markdown: {
-                    type: "string",
-                    description: "包含 Mermaid 图表的 Markdown 内容"
-                },
-                theme: {
-                    type: "string",
-                    enum: ["default", "forest", "dark", "neutral"],
-                    default: "default",
-                    description: "Mermaid 主题"
-                },
-                bgColor: {
-                    type: "string",
-                    description: "背景色，例如 'white'"
-                }
-            },
-            required: ["pageId", "markdown"]
         }
     },
     {

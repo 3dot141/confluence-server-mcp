@@ -17,16 +17,17 @@ export class ASTMarkdownToConfluenceConverter {
     }
     /**
      * Convert markdown to Confluence Storage Format (synchronous, no resource processing)
+     * Uses full preprocessing including blockquote markers
      */
     convert(markdown) {
-        const ast = this.parser.parse(markdown);
+        const ast = this.parser.parseFull(markdown);
         return this.transformToConfluence(ast);
     }
     /**
      * Convert with metadata extraction
      */
     convertWithMetadata(markdown) {
-        const ast = this.parser.parse(markdown);
+        const ast = this.parser.parseFull(markdown);
         const title = this.parser.extractTitle(markdown);
         const storageFormat = this.transformToConfluence(ast);
         return { storageFormat, title };
@@ -130,8 +131,26 @@ export class ASTMarkdownToConfluenceConverter {
     }
     /**
      * Convert blockquote
+     * Support special markers: !info, !warning, !tip, !note
      */
     convertBlockquote(node) {
+        const marker = this.parser.detectBlockquoteMarker(node);
+        if (marker) {
+            // Clean marker from text
+            this.parser.cleanBlockquoteText(node);
+            const content = this.convertBlockquoteContent(node);
+            switch (marker) {
+                case 'info':
+                    return this.createInfoMacro(content);
+                case 'warning':
+                    return this.createWarningMacro(content);
+                case 'tip':
+                    return this.createTipMacro(content);
+                case 'note':
+                    return this.createNoteMacro(content);
+            }
+        }
+        // Regular blockquote
         const content = this.convertBlockquoteContent(node);
         return `<blockquote>${content}</blockquote>`;
     }
@@ -319,6 +338,38 @@ export class ASTMarkdownToConfluenceConverter {
     createTocMacro() {
         return `<ac:structured-macro ac:name="toc" ac:schema-version="1">
   <ac:parameter ac:name="maxLevel">3</ac:parameter>
+</ac:structured-macro>`;
+    }
+    /**
+     * Create info macro
+     */
+    createInfoMacro(content) {
+        return `<ac:structured-macro ac:name="info" ac:schema-version="1">
+  <ac:rich-text><p>${content}</p></ac:rich-text>
+</ac:structured-macro>`;
+    }
+    /**
+     * Create warning macro
+     */
+    createWarningMacro(content) {
+        return `<ac:structured-macro ac:name="warning" ac:schema-version="1">
+  <ac:rich-text><p>${content}</p></ac:rich-text>
+</ac:structured-macro>`;
+    }
+    /**
+     * Create tip macro
+     */
+    createTipMacro(content) {
+        return `<ac:structured-macro ac:name="tip" ac:schema-version="1">
+  <ac:rich-text><p>${content}</p></ac:rich-text>
+</ac:structured-macro>`;
+    }
+    /**
+     * Create note macro
+     */
+    createNoteMacro(content) {
+        return `<ac:structured-macro ac:name="note" ac:schema-version="1">
+  <ac:rich-text><p>${content}</p></ac:rich-text>
 </ac:structured-macro>`;
     }
 }

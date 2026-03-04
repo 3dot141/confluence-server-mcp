@@ -68,6 +68,15 @@ describe('ASTMarkdownToConfluenceConverter Coverage Report', () => {
             const result = converter.convert(md);
             expect(result).toContain('<blockquote>');
         });
+        test('Blockquote with markers (!info, !warning, !tip, !note)', () => {
+            // Each marker should be in its own blockquote (separated by blank line)
+            const md = '> !info Info message\n\n> !warning Warning\n\n> !tip Tip\n\n> !note Note';
+            const result = converter.convert(md);
+            expect(result).toContain('ac:name="info"');
+            expect(result).toContain('ac:name="warning"');
+            expect(result).toContain('ac:name="tip"');
+            expect(result).toContain('ac:name="note"');
+        });
         test('List (unordered)', () => {
             const md = '- item1\n- item2';
             const result = converter.convert(md);
