@@ -1,6 +1,7 @@
 // src/presentation/mcp/tools/handlers.ts
 import { spaceUseCases, pageUseCases, attachmentUseCases, commentUseCases, permissionUseCases, conversionUseCases, } from "../../../application/usecases/index.js";
 import { mermaidPublishUseCase } from '../../../application/usecases/mermaid-publish.js';
+import { publishCompleteUseCase } from '../../../application/usecases/publish-complete.js';
 import { codeMacro } from "../../../domain/markdown/macros.js";
 import { ConfluenceError } from "../../../infrastructure/errors.js";
 export async function handleToolCall(name, args) {
@@ -151,6 +152,23 @@ export async function handleToolCall(name, args) {
                     markdown: args.markdown,
                     theme: args.theme || 'default',
                     bgColor: args.bgColor
+                });
+                return {
+                    content: [{
+                            type: "text",
+                            text: JSON.stringify(result, null, 2)
+                        }]
+                };
+            }
+            case "confluence_publish_complete": {
+                const result = await publishCompleteUseCase.execute({
+                    pageId: args.pageId,
+                    space: args.space,
+                    title: args.title,
+                    markdown: args.markdown,
+                    parentId: args.parentId,
+                    basePath: args.basePath,
+                    mermaidTheme: args.mermaidTheme || 'default'
                 });
                 return {
                     content: [{

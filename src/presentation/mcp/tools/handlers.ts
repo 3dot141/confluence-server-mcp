@@ -8,6 +8,7 @@ import {
   conversionUseCases,
 } from "../../../application/usecases/index.js";
 import { mermaidPublishUseCase } from '../../../application/usecases/mermaid-publish.js';
+import { publishCompleteUseCase } from '../../../application/usecases/publish-complete.js';
 import { codeMacro } from "../../../domain/markdown/macros.js";
 import { ConfluenceError } from "../../../infrastructure/errors.js";
 
@@ -178,6 +179,25 @@ export async function handleToolCall(name: string, args: Record<string, unknown>
           markdown: args.markdown as string,
           theme: (args.theme as any) || 'default',
           bgColor: args.bgColor as string | undefined
+        });
+
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(result, null, 2)
+          }]
+        };
+      }
+
+      case "confluence_publish_complete": {
+        const result = await publishCompleteUseCase.execute({
+          pageId: args.pageId as string | undefined,
+          space: args.space as string,
+          title: args.title as string,
+          markdown: args.markdown as string,
+          parentId: args.parentId as string | undefined,
+          basePath: args.basePath as string | undefined,
+          mermaidTheme: (args.mermaidTheme as any) || 'default'
         });
 
         return {

@@ -260,6 +260,46 @@ export const toolDefinitions = [
             },
             required: ["pageId", "markdown"]
         }
+    },
+    {
+        name: "confluence_publish_complete",
+        description: "一键发布 Markdown 到 Confluence：自动提取图片和 Mermaid 图表，并行上传渲染，转换为 Confluence 格式并发布。支持 !info/!warning/!tip/!note 标记和表格。",
+        inputSchema: {
+            type: "object",
+            properties: {
+                pageId: {
+                    type: "string",
+                    description: "现有页面 ID（可选，不提供则按标题搜索或创建新页面）"
+                },
+                space: {
+                    type: "string",
+                    description: "Confluence Space Key（必填）"
+                },
+                title: {
+                    type: "string",
+                    description: "页面标题（必填）"
+                },
+                markdown: {
+                    type: "string",
+                    description: "Markdown 内容，支持本地图片路径、Mermaid 图表、表格、任务列表等"
+                },
+                parentId: {
+                    type: "string",
+                    description: "父页面 ID（可选，仅创建新页面时有效）"
+                },
+                basePath: {
+                    type: "string",
+                    description: "本地图片基础路径（可选，用于解析相对路径如 ./images/pic.png）"
+                },
+                mermaidTheme: {
+                    type: "string",
+                    enum: ["default", "forest", "dark", "neutral"],
+                    default: "default",
+                    description: "Mermaid 图表主题"
+                }
+            },
+            required: ["space", "title", "markdown"]
+        }
     }
 ];
 //# sourceMappingURL=definitions.js.map
