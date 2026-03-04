@@ -24,7 +24,7 @@ import type {
 } from 'mdast';
 import { visit } from 'unist-util-visit';
 import { RemarkMarkdownParser, ExtractedResources } from '../../infrastructure/markdown/remark-parser.js';
-import { escapeXml, escapeXmlAttr } from './macros.js';
+import { escapeXml, escapeXmlAttr, tocMacro } from './macros.js';
 
 export interface ASTConverterOptions {
   addTocMacro?: boolean;
@@ -109,7 +109,7 @@ export class ASTMarkdownToConfluenceConverter {
 
     // Add TOC macro if enabled
     if (this.options.addTocMacro) {
-      parts.push(this.createTocMacro());
+      parts.push(tocMacro());
     }
 
     // Process each child node
@@ -133,6 +133,10 @@ export class ASTMarkdownToConfluenceConverter {
     }
 
     switch (node.type) {
+      case 'yaml':
+        // Skip YAML frontmatter - it's metadata, not content
+        return null;
+
       case 'heading':
         return this.convertHeading(node as Heading);
 
@@ -442,15 +446,6 @@ export class ASTMarkdownToConfluenceConverter {
    */
   private isConfluenceMacro(html: string): boolean {
     return html.includes('ac:') || html.includes('ri:') || html.includes('ac-structure');
-  }
-
-  /**
-   * Create TOC macro
-   */
-  private createTocMacro(): string {
-    return `<ac:structured-macro ac:name="toc" ac:schema-version="1">
-  <ac:parameter ac:name="maxLevel">3</ac:parameter>
-</ac:structured-macro>`;
   }
 
   /**

@@ -17,8 +17,8 @@ describe('ASTMarkdownToConfluenceConverter Coverage Report', () => {
 
   // 获取 markdown 中所有节点类型的辅助函数
   function getNodeTypes(markdown: string): Set<string> {
-    const processor = unified().use(remarkParse);
-    const ast = processor.parse(markdown);
+    // Use the parser instance which has frontmatter plugin enabled
+    const ast = parser.parse(markdown);
     const types = new Set<string>();
 
     visit(ast, (node) => {
@@ -214,8 +214,19 @@ describe('ASTMarkdownToConfluenceConverter Coverage Report', () => {
     test('YAML frontmatter', () => {
       const md = '---\ntitle: Test\n---\n\n# Content';
       const types = getNodeTypes(md);
-      // Frontmatter may be parsed as yaml or html
-      console.log('Frontmatter handling:', types.has('yaml') ? 'parsed as yaml' : 'other');
+      // With remark-frontmatter, frontmatter is parsed as yaml node and should be skipped
+      if (types.has('yaml')) {
+        const result = converter.convert(md);
+        // Frontmatter should not appear in output
+        expect(result).not.toContain('title: Test');
+        expect(result).not.toContain('---');
+        // Content should be rendered
+        expect(result).toContain('<h1>');
+        expect(result).toContain('Content');
+        console.log('✓ Frontmatter properly skipped (parsed as yaml)');
+      } else {
+        console.log('⚠️ Frontmatter not parsed as yaml (plugin may not be active)');
+      }
     });
 
     test('Math/LaTeX blocks', () => {

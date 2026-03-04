@@ -3,6 +3,7 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkStringify from 'remark-stringify';
 import remarkGfm from 'remark-gfm';
+import remarkFrontmatter from 'remark-frontmatter';
 import { visit, Visitor } from 'unist-util-visit';
 import type {
   Root,
@@ -64,9 +65,9 @@ export interface ResourceReplacement {
 }
 
 export class RemarkMarkdownParser {
-  // Use GFM plugin for tables, strikethrough, etc.
-  private parser = unified().use(remarkParse).use(remarkGfm);
-  private stringifier = unified().use(remarkStringify).use(remarkGfm);
+  // Use GFM plugin for tables, strikethrough, etc. and frontmatter for YAML
+  private parser = unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter);
+  private stringifier = unified().use(remarkStringify).use(remarkGfm).use(remarkFrontmatter);
 
   /**
    * Preprocess markdown to convert Obsidian ![[image]] format to standard ![image]()
