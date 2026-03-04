@@ -7,7 +7,6 @@ import {
   permissionUseCases,
 } from "../../../application/usecases/index.js";
 import { publishCompleteUseCase } from '../../../application/usecases/publish-complete.js';
-import { codeMacro } from "../../../domain/markdown/macros.js";
 import { ConfluenceError } from "../../../infrastructure/errors.js";
 
 export async function handleToolCall(name: string, args: Record<string, unknown>) {
@@ -144,15 +143,6 @@ export async function handleToolCall(name: string, args: Record<string, unknown>
           username: args.username as string | undefined,
         });
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-      }
-
-      // Code macro
-      case "confluence_build_code_macro": {
-        const macro = codeMacro(
-          args.code as string,
-          args.language as string | undefined
-        );
-        return { content: [{ type: "text", text: macro }] };
       }
 
       case "confluence_publish_complete": {

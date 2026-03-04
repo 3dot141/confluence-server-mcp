@@ -192,20 +192,6 @@ export const toolDefinitions = [
         }
     },
     {
-        name: "confluence_build_code_macro",
-        description: "[FORMAT CONVERSION TOOL] Generate a Confluence code macro in Storage Format. This is a utility for building Confluence content, not an API operation.",
-        inputSchema: {
-            type: "object",
-            properties: {
-                code: { type: "string", description: "Code content" },
-                language: { type: "string", description: "Programming language" },
-                linenumbers: { type: "boolean", description: "Show line numbers", default: false },
-                collapse: { type: "boolean", description: "Collapse by default", default: false }
-            },
-            required: ["code"]
-        }
-    },
-    {
         name: "confluence_publish_complete",
         description: "一键发布 Markdown 到 Confluence：自动提取图片和 Mermaid 图表，并行上传渲染，转换为 Confluence 格式并发布。支持 !info/!warning/!tip/!note 标记和表格。",
         inputSchema: {

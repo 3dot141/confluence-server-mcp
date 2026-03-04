@@ -1,7 +1,6 @@
 // src/presentation/mcp/tools/handlers.ts
 import { spaceUseCases, pageUseCases, attachmentUseCases, commentUseCases, permissionUseCases, } from "../../../application/usecases/index.js";
 import { publishCompleteUseCase } from '../../../application/usecases/publish-complete.js';
-import { codeMacro } from "../../../domain/markdown/macros.js";
 import { ConfluenceError } from "../../../infrastructure/errors.js";
 export async function handleToolCall(name, args) {
     try {
@@ -124,11 +123,6 @@ export async function handleToolCall(name, args) {
                     username: args.username,
                 });
                 return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-            }
-            // Code macro
-            case "confluence_build_code_macro": {
-                const macro = codeMacro(args.code, args.language);
-                return { content: [{ type: "text", text: macro }] };
             }
             case "confluence_publish_complete": {
                 const result = await publishCompleteUseCase.execute({
