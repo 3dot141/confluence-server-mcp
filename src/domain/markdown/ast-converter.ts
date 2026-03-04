@@ -24,7 +24,7 @@ import type {
 } from 'mdast';
 import { visit } from 'unist-util-visit';
 import { RemarkMarkdownParser, ExtractedResources } from '../../infrastructure/markdown/remark-parser.js';
-import { escapeXml, escapeXmlAttr, tocMacro } from './macros.js';
+import { escapeXml, escapeXmlAttr, tocMacro, codeMacro } from './macros.js';
 
 export interface ASTConverterOptions {
   addTocMacro?: boolean;
@@ -193,15 +193,7 @@ export class ASTMarkdownToConfluenceConverter {
    */
   private convertCode(node: Code): string {
     const lang = node.lang || 'plain';
-    const code = escapeXml(node.value);
-
-    return `<ac:structured-macro ac:name="code" ac:schema-version="1">
-  <ac:parameter ac:name="language">${escapeXmlAttr(lang)}</ac:parameter>
-  <ac:parameter ac:name="linenumbers">false</ac:parameter>
-  <ac:rich-text>
-    <pre><code>${code}</code></pre>
-  </ac:rich-text>
-</ac:structured-macro>`;
+    return codeMacro(node.value, lang);
   }
 
   /**

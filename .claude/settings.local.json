@@ -9,7 +9,9 @@
       "mcp__morph-mcp__edit_file",
       "mcp__morph-mcp__warpgrep_codebase_search",
       "mcp__sequential-thinking__sequentialthinking",
-      "mcp__exa__get_code_context_exa"
+      "mcp__exa__get_code_context_exa",
+      "mcp__exa__web_search_exa",
+      "mcp__confluence__confluence_publish_complete"
     ]
   }
 }
