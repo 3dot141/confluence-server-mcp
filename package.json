@@ -1,6 +1,6 @@
 {
   "name": "confluence-mcp-server",
-  "version": "2.0.6",
+  "version": "2.0.7",
   "description": "Layered architecture MCP server for Confluence with Markdown publishing",
   "type": "module",
   "scripts": {
