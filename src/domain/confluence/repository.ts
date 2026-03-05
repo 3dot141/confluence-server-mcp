@@ -88,6 +88,26 @@ export class ConfluenceRepository {
     return res.data;
   }
 
+  async movePage(pageId: string, parentId: string): Promise<Page> {
+    // First get the current page to get its version and content
+    const page = await this.getPageById(pageId);
+
+    const res = await this.api.put(`/content/${pageId}`, {
+      id: pageId,
+      type: "page",
+      title: page.title,
+      version: { number: page.version.number + 1 },
+      ancestors: [{ id: parentId }],
+      body: {
+        storage: {
+          value: page.body?.storage?.value || "",
+          representation: "storage"
+        }
+      }
+    });
+    return res.data;
+  }
+
   async deletePage(pageId: string): Promise<void> {
     await this.api.delete(`/content/${pageId}`);
   }

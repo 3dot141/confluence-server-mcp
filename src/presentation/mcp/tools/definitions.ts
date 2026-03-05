@@ -124,6 +124,18 @@ export const toolDefinitions = [
     }
   },
   {
+    name: "confluence_move_page",
+    description: "Move a page to another parent page",
+    inputSchema: {
+      type: "object",
+      properties: {
+        pageId: { type: "string", description: "Page ID to move" },
+        parentId: { type: "string", description: "Target parent page ID" }
+      },
+      required: ["pageId", "parentId"]
+    }
+  },
+  {
     name: "confluence_upload_attachment",
     description: "Upload an attachment to a page",
     inputSchema: {

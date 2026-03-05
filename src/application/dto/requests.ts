@@ -23,6 +23,11 @@ export interface UpdatePageRequestDto {
   newTitle?: string;
 }
 
+export interface MovePageRequestDto {
+  pageId: string;
+  parentId: string;
+}
+
 export interface GetPageRequestDto {
   pageId?: string;
   space?: string;

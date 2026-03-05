@@ -97,6 +97,14 @@ export async function handleToolCall(name: string, args: Record<string, unknown>
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
       }
 
+      case "confluence_move_page": {
+        const result = await pageUseCases.movePage({
+          pageId: args.pageId as string,
+          parentId: args.parentId as string,
+        });
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      }
+
       // Attachments
       case "confluence_upload_attachment": {
         const result = await attachmentUseCases.uploadAttachment({

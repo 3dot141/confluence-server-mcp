@@ -4,6 +4,7 @@ import { config } from "../../infrastructure/config.js";
 import {
   CreatePageRequestDto,
   UpdatePageRequestDto,
+  MovePageRequestDto,
   GetPageRequestDto,
   DeletePageRequestDto,
   SearchPagesRequestDto,
@@ -133,6 +134,11 @@ export class PageUseCases {
 
   async getPageHistory(dto: GetPageHistoryRequestDto): Promise<unknown> {
     return await confluenceRepository.getPageHistory(dto.pageId, dto.limit);
+  }
+
+  async movePage(dto: MovePageRequestDto): Promise<PageResponse> {
+    const moved = await confluenceRepository.movePage(dto.pageId, dto.parentId);
+    return ConfluenceMapper.toPageResponse(moved);
   }
 }
 
