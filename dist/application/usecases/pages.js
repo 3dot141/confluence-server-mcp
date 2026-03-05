@@ -101,6 +101,10 @@ export class PageUseCases {
     async getPageHistory(dto) {
         return await confluenceRepository.getPageHistory(dto.pageId, dto.limit);
     }
+    async movePage(dto) {
+        const moved = await confluenceRepository.movePage(dto.pageId, dto.parentId);
+        return ConfluenceMapper.toPageResponse(moved);
+    }
 }
 export const pageUseCases = new PageUseCases();
 //# sourceMappingURL=pages.js.map

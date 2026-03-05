@@ -81,6 +81,13 @@ export async function handleToolCall(name, args) {
                 });
                 return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
             }
+            case "confluence_move_page": {
+                const result = await pageUseCases.movePage({
+                    pageId: args.pageId,
+                    parentId: args.parentId,
+                });
+                return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+            }
             // Attachments
             case "confluence_upload_attachment": {
                 const result = await attachmentUseCases.uploadAttachment({

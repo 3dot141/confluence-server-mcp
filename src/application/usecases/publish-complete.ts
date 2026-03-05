@@ -52,6 +52,7 @@ export class PublishCompleteUseCase {
       let markdown = input.markdown;
       markdown = this.parser.preprocessObsidianSyntax(markdown);
       markdown = this.parser.preprocessBlockquoteMarkers(markdown);
+      markdown = this.parser.stripYamlFrontmatter(markdown);
 
       // 2. Parse AST and extract resources (single-pass)
       const ast = this.parser.parse(markdown);

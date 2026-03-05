@@ -70,6 +70,32 @@ export class RemarkMarkdownParser {
   private stringifier = unified().use(remarkStringify).use(remarkGfm).use(remarkFrontmatter);
 
   /**
+   * Normalize document preamble so YAML frontmatter can still be detected
+   * when markdown starts with BOM or blank lines.
+   */
+  private normalizeFrontmatterPreamble(markdown: string): string {
+    return markdown
+      .replace(/^\uFEFF/, '')
+      .replace(/^(?:[ \t]*\r?\n)+(?=---\r?\n)/, '');
+  }
+
+  /**
+   * Strip YAML frontmatter block at document start.
+   * Used by publish pipeline to avoid leaking metadata into page content.
+   */
+  stripYamlFrontmatter(markdown: string): string {
+    const normalized = this.normalizeFrontmatterPreamble(markdown);
+    const stripped = normalized.replace(
+      /^[ \t]*---[ \t]*\r?\n[\s\S]*?\r?\n[ \t]*---[ \t]*(?:\r?\n|$)/,
+      ''
+    );
+    if (stripped !== normalized) {
+      return stripped.replace(/^(?:[ \t]*\r?\n)+/, '');
+    }
+    return stripped;
+  }
+
+  /**
    * Preprocess markdown to convert Obsidian ![[image]] format to standard ![image]()
    */
   preprocessObsidianSyntax(markdown: string): string {
@@ -93,7 +119,8 @@ export class RemarkMarkdownParser {
    * Parse markdown to AST with preprocessing
    */
   parse(markdown: string): Root {
-    const preprocessed = this.preprocessObsidianSyntax(markdown);
+    let preprocessed = this.normalizeFrontmatterPreamble(markdown);
+    preprocessed = this.preprocessObsidianSyntax(preprocessed);
     return this.parser.parse(preprocessed) as Root;
   }
 
@@ -101,7 +128,8 @@ export class RemarkMarkdownParser {
    * Parse with full preprocessing including blockquote markers
    */
   parseFull(markdown: string): Root {
-    let preprocessed = this.preprocessObsidianSyntax(markdown);
+    let preprocessed = this.normalizeFrontmatterPreamble(markdown);
+    preprocessed = this.preprocessObsidianSyntax(preprocessed);
     preprocessed = this.preprocessBlockquoteMarkers(preprocessed);
     return this.parser.parse(preprocessed) as Root;
   }
@@ -300,10 +328,14 @@ export class RemarkMarkdownParser {
    * Extract frontmatter title
    */
   extractTitle(markdown: string): string | undefined {
-    // Check YAML frontmatter
-    const frontMatterMatch = markdown.match(/^---\n[\s\S]*?title:\s*(.+?)\n[\s\S]*?---/);
+    // Check YAML frontmatter (supports BOM, leading blank lines, CRLF)
+    const normalized = this.normalizeFrontmatterPreamble(markdown);
+    const frontMatterMatch = normalized.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
     if (frontMatterMatch) {
-      return frontMatterMatch[1].trim().replace(/^["']|["']$/g, '');
+      const titleMatch = frontMatterMatch[1].match(/^\s*title\s*:\s*(.+?)\s*$/m);
+      if (titleMatch) {
+        return titleMatch[1].trim().replace(/^["']|["']$/g, '');
+      }
     }
 
     // Parse AST and check for H1

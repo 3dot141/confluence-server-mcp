@@ -1,5 +1,5 @@
 import { RemarkMarkdownParser } from '../../infrastructure/markdown/remark-parser.js';
-import { escapeXml, escapeXmlAttr } from './macros.js';
+import { escapeXml, escapeXmlAttr, tocMacro, codeMacro } from './macros.js';
 /**
  * AST-based Markdown to Confluence Converter
  * Transforms remark AST to Confluence Storage Format
@@ -56,7 +56,7 @@ export class ASTMarkdownToConfluenceConverter {
         const parts = [];
         // Add TOC macro if enabled
         if (this.options.addTocMacro) {
-            parts.push(this.createTocMacro());
+            parts.push(tocMacro());
         }
         // Process each child node
         for (const child of ast.children) {
@@ -76,6 +76,9 @@ export class ASTMarkdownToConfluenceConverter {
             return null;
         }
         switch (node.type) {
+            case 'yaml':
+                // Skip YAML frontmatter - it's metadata, not content
+                return null;
             case 'heading':
                 return this.convertHeading(node);
             case 'paragraph':
@@ -120,14 +123,7 @@ export class ASTMarkdownToConfluenceConverter {
      */
     convertCode(node) {
         const lang = node.lang || 'plain';
-        const code = escapeXml(node.value);
-        return `<ac:structured-macro ac:name="code" ac:schema-version="1">
-  <ac:parameter ac:name="language">${escapeXmlAttr(lang)}</ac:parameter>
-  <ac:parameter ac:name="linenumbers">false</ac:parameter>
-  <ac:rich-text>
-    <pre><code>${code}</code></pre>
-  </ac:rich-text>
-</ac:structured-macro>`;
+        return codeMacro(node.value, lang);
     }
     /**
      * Convert blockquote
@@ -331,14 +327,6 @@ export class ASTMarkdownToConfluenceConverter {
      */
     isConfluenceMacro(html) {
         return html.includes('ac:') || html.includes('ri:') || html.includes('ac-structure');
-    }
-    /**
-     * Create TOC macro
-     */
-    createTocMacro() {
-        return `<ac:structured-macro ac:name="toc" ac:schema-version="1">
-  <ac:parameter ac:name="maxLevel">3</ac:parameter>
-</ac:structured-macro>`;
     }
     /**
      * Create info macro

@@ -75,6 +75,8 @@ describe('ASTMarkdownToConfluenceConverter Coverage Report', () => {
       const result = converter.convert(md);
       expect(result).toContain('ac:name="code"');
       expect(result).toContain('language');
+      expect(result).toContain('<ac:plain-text-body><![CDATA[');
+      expect(result).toContain('const x = 1;');
     });
 
     test('Blockquote', () => {
@@ -227,6 +229,16 @@ describe('ASTMarkdownToConfluenceConverter Coverage Report', () => {
       } else {
         console.log('⚠️ Frontmatter not parsed as yaml (plugin may not be active)');
       }
+    });
+
+    test('YAML frontmatter with leading blank lines', () => {
+      const md = '\n\n---\ntitle: Test\n---\n\n# Content';
+      const result = converter.convert(md);
+
+      expect(result).not.toContain('title: Test');
+      expect(result).not.toContain('<hr/>');
+      expect(result).toContain('<h1>');
+      expect(result).toContain('Content');
     });
 
     test('Math/LaTeX blocks', () => {
