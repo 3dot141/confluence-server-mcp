@@ -23,4 +23,9 @@ describe('RemarkMarkdownParser', () => {
     const markdown = '\n---\ntitle: "Frontmatter Title"\n---\n\n# Heading';
     expect(parser.extractTitle(markdown)).toBe('Frontmatter Title');
   });
+
+  test('stripEmojis removes unicode and shortcode emojis', () => {
+    const markdown = 'Hello 😀 :rocket: World';
+    expect(parser.stripEmojis(markdown)).toBe('Hello   World');
+  });
 });

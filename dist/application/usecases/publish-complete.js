@@ -20,7 +20,11 @@ export class PublishCompleteUseCase {
     async execute(input) {
         const errors = [];
         try {
-            logger.info('Starting publish-complete', { title: input.title, space: input.space });
+            const sanitizedTitle = this.sanitizeTitle(input.title);
+            if (!sanitizedTitle) {
+                throw new Error('Title is empty after removing emojis. Please provide a non-emoji title.');
+            }
+            logger.info('Starting publish-complete', { title: sanitizedTitle, space: input.space });
             // 1. Preprocess markdown (Obsidian syntax, blockquote markers)
             let markdown = input.markdown;
             markdown = this.parser.preprocessObsidianSyntax(markdown);
@@ -40,8 +44,8 @@ export class PublishCompleteUseCase {
             let existingVersion = 0;
             if (!pageId) {
                 // Check if page exists by title
-                const searchResults = await confluenceRepository.searchPages(input.title, input.space);
-                const existing = searchResults.find((p) => p.title === input.title);
+                const searchResults = await confluenceRepository.searchPages(sanitizedTitle, input.space);
+                const existing = searchResults.find((p) => p.title === sanitizedTitle);
                 if (existing) {
                     pageId = existing.id;
                     const page = await confluenceRepository.getPageById(pageId);
@@ -53,7 +57,7 @@ export class PublishCompleteUseCase {
                     // Create empty page first
                     const newPage = await confluenceRepository.createPage({
                         space: input.space,
-                        title: input.title,
+                        title: sanitizedTitle,
                         content: '', // Empty initially
                         parentId: input.parentId,
                     });
@@ -81,7 +85,7 @@ export class PublishCompleteUseCase {
             const version = operation === 'created' ? 2 : existingVersion + 1;
             const updatedPage = await confluenceRepository.updatePage({
                 pageId,
-                title: input.title,
+                title: sanitizedTitle,
                 content: storageFormat,
                 version,
             });
@@ -105,6 +109,9 @@ export class PublishCompleteUseCase {
             logger.error('Publish complete failed', error);
             throw error;
         }
+    }
+    sanitizeTitle(title) {
+        return this.parser.stripEmojis(title).replace(/\s+/g, ' ').trim();
     }
     /**
      * Process images in parallel batches
@@ -174,7 +181,7 @@ export class PublishCompleteUseCase {
                     // Upload to Confluence
                     await confluenceRepository.uploadAttachmentFromBase64(pageId, buffer.toString('base64'), filename);
                     return {
-                        content: mermaid.content,
+                        placeholder: mermaid.placeholder,
                         filename,
                     };
                 }
@@ -182,12 +189,12 @@ export class PublishCompleteUseCase {
                     const message = `Failed to render mermaid: ${error instanceof Error ? error.message : 'Unknown error'}`;
                     logger.error(message);
                     errors.push(message);
-                    return { content: mermaid.content, filename: '' };
+                    return { placeholder: mermaid.placeholder, filename: '' };
                 }
             }));
-            batchResults.forEach(({ content, filename }) => {
+            batchResults.forEach(({ placeholder, filename }) => {
                 if (filename) {
-                    results.set(content, filename);
+                    results.set(placeholder, filename);
                 }
             });
         }

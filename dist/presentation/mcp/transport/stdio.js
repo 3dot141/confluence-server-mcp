@@ -21,7 +21,13 @@ export async function startStdioServer() {
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { name, arguments: args } = request.params;
         logger.info(`Tool called: ${name}`);
-        return await handleToolCall(name, args || {});
+        try {
+            return await handleToolCall(name, args || {});
+        }
+        catch (error) {
+            logger.error(`Tool call failed: ${name}`, error);
+            throw error;
+        }
     });
     await server.connect(transport);
     logger.info("Confluence MCP Server started (stdio mode)");

@@ -123,7 +123,8 @@ export class ASTMarkdownToConfluenceConverter {
      */
     convertCode(node) {
         const lang = node.lang || 'plain';
-        return codeMacro(node.value, lang);
+        const content = this.parser.stripEmojis(node.value);
+        return codeMacro(content, lang);
     }
     /**
      * Convert blockquote
@@ -211,10 +212,11 @@ export class ASTMarkdownToConfluenceConverter {
         let taskXml = '<ac:task-list>\n';
         tasks.forEach((task, index) => {
             const status = task.checked ? 'complete' : 'incomplete';
+            const cleanTaskText = this.parser.stripEmojis(task.text);
             taskXml += `  <ac:task>
     <ac:task-id>${index + 1}</ac:task-id>
     <ac:task-status>${status}</ac:task-status>
-    <ac:task-body><p>${escapeXml(task.text)}</p></ac:task-body>
+    <ac:task-body><p>${escapeXml(cleanTaskText)}</p></ac:task-body>
   </ac:task>\n`;
         });
         taskXml += '</ac:task-list>';
@@ -279,13 +281,13 @@ export class ASTMarkdownToConfluenceConverter {
     convertInlineNode(node) {
         switch (node.type) {
             case 'text':
-                return escapeXml(node.value);
+                return escapeXml(this.parser.stripEmojis(node.value));
             case 'strong':
                 return `<strong>${this.convertInlineNodes(node.children)}</strong>`;
             case 'emphasis':
                 return `<em>${this.convertInlineNodes(node.children)}</em>`;
             case 'inlineCode':
-                return `<code>${escapeXml(node.value)}</code>`;
+                return `<code>${escapeXml(this.parser.stripEmojis(node.value))}</code>`;
             case 'link':
                 const link = node;
                 const linkText = this.convertInlineNodes(link.children);
@@ -305,7 +307,7 @@ export class ASTMarkdownToConfluenceConverter {
      * Convert image to Confluence image macro
      */
     convertImage(node) {
-        const alt = escapeXmlAttr(node.alt || '');
+        const alt = escapeXmlAttr(this.parser.stripEmojis(node.alt || ''));
         // Check if URL is in imageMapping
         const mappedValue = this.options.imageMapping?.[node.url];
         if (mappedValue) {

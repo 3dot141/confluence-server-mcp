@@ -228,6 +228,36 @@ describe('ASTMarkdownToConfluenceConverter Coverage Report', () => {
             }
         });
     });
+    describe('Emoji removal in publish output', () => {
+        test('removes unicode emoji and shortcode from text', () => {
+            const md = '发布 🎉 成功 :rocket:';
+            const result = converter.convert(md);
+            expect(result).toContain('<p>发布  成功 </p>');
+            expect(result).not.toContain('🎉');
+            expect(result).not.toContain(':rocket:');
+        });
+        test('removes emoji from code blocks and inline code', () => {
+            const md = [
+                '正文 `run :rocket: now 😀`',
+                '',
+                '```js',
+                'console.log("ok 😀 :rocket:");',
+                '```',
+            ].join('\n');
+            const result = converter.convert(md);
+            expect(result).toContain('<code>run  now </code>');
+            expect(result).toContain('console.log("ok  ");');
+            expect(result).not.toContain('😀');
+            expect(result).not.toContain(':rocket:');
+        });
+        test('removes emoji from task text', () => {
+            const md = '- [ ] ✅ 做完 :white_check_mark:';
+            const result = converter.convert(md);
+            expect(result).toContain('<ac:task-body><p> 做完 </p></ac:task-body>');
+            expect(result).not.toContain('✅');
+            expect(result).not.toContain(':white_check_mark:');
+        });
+    });
 });
 // 生成完整的支持矩阵报告
 function generateSupportReport() {

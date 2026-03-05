@@ -193,7 +193,8 @@ export class ASTMarkdownToConfluenceConverter {
    */
   private convertCode(node: Code): string {
     const lang = node.lang || 'plain';
-    return codeMacro(node.value, lang);
+    const content = this.parser.stripEmojis(node.value);
+    return codeMacro(content, lang);
   }
 
   /**
@@ -297,10 +298,11 @@ export class ASTMarkdownToConfluenceConverter {
     let taskXml = '<ac:task-list>\n';
     tasks.forEach((task, index) => {
       const status = task.checked ? 'complete' : 'incomplete';
+      const cleanTaskText = this.parser.stripEmojis(task.text);
       taskXml += `  <ac:task>
     <ac:task-id>${index + 1}</ac:task-id>
     <ac:task-status>${status}</ac:task-status>
-    <ac:task-body><p>${escapeXml(task.text)}</p></ac:task-body>
+    <ac:task-body><p>${escapeXml(cleanTaskText)}</p></ac:task-body>
   </ac:task>\n`;
     });
     taskXml += '</ac:task-list>';
@@ -377,7 +379,7 @@ export class ASTMarkdownToConfluenceConverter {
   private convertInlineNode(node: PhrasingContent): string {
     switch (node.type) {
       case 'text':
-        return escapeXml((node as Text).value);
+        return escapeXml(this.parser.stripEmojis((node as Text).value));
 
       case 'strong':
         return `<strong>${this.convertInlineNodes((node as Strong).children)}</strong>`;
@@ -386,7 +388,7 @@ export class ASTMarkdownToConfluenceConverter {
         return `<em>${this.convertInlineNodes((node as Emphasis).children)}</em>`;
 
       case 'inlineCode':
-        return `<code>${escapeXml((node as InlineCode).value)}</code>`;
+        return `<code>${escapeXml(this.parser.stripEmojis((node as InlineCode).value))}</code>`;
 
       case 'link':
         const link = node as Link;
@@ -412,7 +414,7 @@ export class ASTMarkdownToConfluenceConverter {
    * Convert image to Confluence image macro
    */
   private convertImage(node: Image): string {
-    const alt = escapeXmlAttr(node.alt || '');
+    const alt = escapeXmlAttr(this.parser.stripEmojis(node.alt || ''));
 
     // Check if URL is in imageMapping
     const mappedValue = this.options.imageMapping?.[node.url];

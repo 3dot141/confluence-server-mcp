@@ -28,7 +28,12 @@ export async function startStdioServer(): Promise<void> {
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
     logger.info(`Tool called: ${name}`);
-    return await handleToolCall(name, (args as Record<string, unknown>) || {});
+    try {
+      return await handleToolCall(name, (args as Record<string, unknown>) || {});
+    } catch (error) {
+      logger.error(`Tool call failed: ${name}`, error);
+      throw error;
+    }
   });
 
   await server.connect(transport);

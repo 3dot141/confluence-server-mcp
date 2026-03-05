@@ -6,6 +6,9 @@ import remarkGfm from 'remark-gfm';
 import remarkFrontmatter from 'remark-frontmatter';
 import { visit } from 'unist-util-visit';
 export class RemarkMarkdownParser {
+    // eslint-disable-next-line no-misleading-character-class
+    static EMOJI_REGEX = /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F018}-\u{1F270}]|[\u{238C}]|[\u{1F191}-\u{1F251}]|[\u{1F004}]|[\u{1F0CF}]|[\u{1F170}-\u{1F251}]|[\u{200D}]|[\u{FE0F}]|[\u{E0000}-\u{E007F}]|[\u{2190}-\u{21FF}]|[\u{2B00}-\u{2BFF}]|[\u{2300}-\u{23FF}]/gu;
+    static EMOJI_SHORTCODE_REGEX = /:[\w+-]+:/g;
     // Use GFM plugin for tables, strikethrough, etc. and frontmatter for YAML
     parser = unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter);
     stringifier = unified().use(remarkStringify).use(remarkGfm).use(remarkFrontmatter);
@@ -47,6 +50,14 @@ export class RemarkMarkdownParser {
             .replace(/^>\s*[⚠️]\s*/gm, '> !warning ')
             .replace(/^>\s*[💡]\s*/gm, '> !tip ')
             .replace(/^>\s*[📝]\s*/gm, '> !note ');
+    }
+    /**
+     * Remove unicode emojis and :shortcode: style emojis.
+     */
+    stripEmojis(text) {
+        return text
+            .replace(RemarkMarkdownParser.EMOJI_REGEX, '')
+            .replace(RemarkMarkdownParser.EMOJI_SHORTCODE_REGEX, '');
     }
     /**
      * Parse markdown to AST with preprocessing
@@ -131,9 +142,11 @@ export class RemarkMarkdownParser {
             }
         });
         // Replace mermaid code blocks with image references
+        let mermaidIndex = 0;
         visit(ast, 'code', (node, index, parent) => {
             if (node.lang === 'mermaid' && parent) {
-                const imageUrl = mermaidMap.get(node.value);
+                const placeholder = `<!--MERMAID_DIAGRAM_${mermaidIndex++}-->`;
+                const imageUrl = mermaidMap.get(placeholder);
                 if (imageUrl) {
                     // Replace code node with image node
                     const imageNode = {
