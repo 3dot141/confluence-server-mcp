@@ -1,0 +1,378 @@
+// src/markdown/converter.ts
+import type {
+  Root,
+  Code,
+  Image,
+  Html,
+  Blockquote,
+  Paragraph,
+  Text,
+  Link,
+  Heading,
+  List,
+  ListItem,
+  Table,
+  TableRow,
+  TableCell,
+  Emphasis,
+  Strong,
+  InlineCode,
+  BlockContent,
+  PhrasingContent,
+} from 'mdast';
+import { RemarkMarkdownParser } from './parser.js';
+import { escapeXml, escapeXmlAttr, tocMacro, codeMacro } from './macros.js';
+
+export interface ASTConverterOptions {
+  addTocMacro?: boolean;
+  imageMapping?: Record<string, string>;
+  basePath?: string;
+}
+
+export interface ASTConverterResult {
+  storageFormat: string;
+  title?: string;
+  imagesProcessed: number;
+  mermaidsProcessed: number;
+}
+
+export class ASTMarkdownToConfluenceConverter {
+  private parser = new RemarkMarkdownParser();
+  private options: ASTConverterOptions;
+
+  constructor(options: ASTConverterOptions = {}) {
+    this.options = {
+      addTocMacro: true,
+      imageMapping: {},
+      basePath: process.cwd(),
+      ...options,
+    };
+  }
+
+  convert(markdown: string): string {
+    const ast = this.parser.parseFull(markdown);
+    return this.transformToConfluence(ast);
+  }
+
+  convertWithMetadata(markdown: string): { storageFormat: string; title?: string } {
+    const ast = this.parser.parseFull(markdown);
+    const title = this.parser.extractTitle(markdown);
+    const storageFormat = this.transformToConfluence(ast);
+
+    return { storageFormat, title };
+  }
+
+  async convertAsync(
+    markdown: string,
+    imageMap: Map<string, string>,
+    mermaidMap: Map<string, string>
+  ): Promise<ASTConverterResult> {
+    const ast = this.parser.parse(markdown);
+
+    this.parser.replaceResources(ast, imageMap, mermaidMap);
+
+    const title = this.parser.extractTitle(markdown);
+    const storageFormat = this.transformToConfluence(ast);
+
+    return {
+      storageFormat,
+      title,
+      imagesProcessed: imageMap.size,
+      mermaidsProcessed: mermaidMap.size,
+    };
+  }
+
+  private transformToConfluence(ast: Root): string {
+    const parts: string[] = [];
+
+    if (this.options.addTocMacro) {
+      parts.push(tocMacro());
+    }
+
+    for (const child of ast.children) {
+      const converted = this.convertNode(child);
+      if (converted) {
+        parts.push(converted);
+      }
+    }
+
+    return parts.join('\n\n');
+  }
+
+  private convertNode(node: BlockContent | PhrasingContent | any): string | null {
+    if (!node || typeof node.type !== 'string') {
+      return null;
+    }
+
+    switch (node.type) {
+      case 'yaml':
+        return null;
+
+      case 'heading':
+        return this.convertHeading(node as Heading);
+
+      case 'paragraph':
+        return this.convertParagraph(node as Paragraph);
+
+      case 'code':
+        return this.convertCode(node as Code);
+
+      case 'blockquote':
+        return this.convertBlockquote(node as Blockquote);
+
+      case 'list':
+        return this.convertList(node as List);
+
+      case 'table':
+        return this.convertTable(node as Table);
+
+      case 'thematicBreak':
+        return '<hr/>';
+
+      case 'html':
+        return this.convertHtml(node as Html);
+
+      case 'image':
+        return this.convertImage(node as Image);
+
+      default:
+        console.warn(`Unknown node type: ${node.type}`);
+        return null;
+    }
+  }
+
+  private convertHeading(node: Heading): string {
+    const level = Math.min(Math.max(node.depth, 1), 6);
+    const content = this.convertInlineNodes(node.children);
+    return `<h${level}>${content}</h${level}>`;
+  }
+
+  private convertParagraph(node: Paragraph): string {
+    const content = this.convertInlineNodes(node.children);
+    return content ? `<p>${content}</p>` : '';
+  }
+
+  private convertCode(node: Code): string {
+    const lang = node.lang || 'plain';
+    const content = this.parser.stripEmojis(node.value);
+    return codeMacro(content, lang);
+  }
+
+  private convertBlockquote(node: Blockquote): string {
+    const marker = this.parser.detectBlockquoteMarker(node);
+
+    if (marker) {
+      this.parser.cleanBlockquoteText(node);
+
+      const content = this.convertBlockquoteContent(node);
+
+      switch (marker) {
+        case 'info':
+          return this.createInfoMacro(content);
+        case 'warning':
+          return this.createWarningMacro(content);
+        case 'tip':
+          return this.createTipMacro(content);
+        case 'note':
+          return this.createNoteMacro(content);
+      }
+    }
+
+    const content = this.convertBlockquoteContent(node);
+    return `<blockquote>${content}</blockquote>`;
+  }
+
+  private convertBlockquoteContent(node: Blockquote): string {
+    const parts: string[] = [];
+
+    for (const child of node.children) {
+      const converted = this.convertNode(child);
+      if (converted) {
+        parts.push(converted);
+      }
+    }
+
+    return parts.join('\n');
+  }
+
+  private convertList(node: List): string {
+    const isOrdered = node.ordered || false;
+    const isTaskList = this.parser.isTaskList(node);
+
+    if (isTaskList) {
+      return this.convertTaskList(node);
+    }
+
+    const tag = isOrdered ? 'ol' : 'ul';
+    const items: string[] = [];
+
+    for (const item of node.children as ListItem[]) {
+      const content = this.convertListItem(item);
+      items.push(`<li>${content}</li>`);
+    }
+
+    return `<${tag}>\n${items.join('\n')}\n</${tag}>`;
+  }
+
+  private convertListItem(item: ListItem): string {
+    const parts: string[] = [];
+
+    for (const child of item.children) {
+      if (child.type === 'paragraph') {
+        const content = this.convertInlineNodes((child as Paragraph).children);
+        parts.push(content);
+      } else if (child.type === 'list') {
+        const nested = this.convertList(child as List);
+        parts.push(nested);
+      } else {
+        const converted = this.convertNode(child as BlockContent);
+        if (converted) {
+          parts.push(converted);
+        }
+      }
+    }
+
+    return parts.join('\n');
+  }
+
+  private convertTaskList(node: List): string {
+    const tasks = this.parser.extractTaskItems(node);
+
+    let taskXml = '<ac:task-list>\n';
+    tasks.forEach((task, index) => {
+      const status = task.checked ? 'complete' : 'incomplete';
+      const cleanTaskText = this.parser.stripEmojis(task.text);
+      taskXml += `  <ac:task>
+    <ac:task-id>${index + 1}</ac:task-id>
+    <ac:task-status>${status}</ac:task-status>
+    <ac:task-body><p>${escapeXml(cleanTaskText)}</p></ac:task-body>
+  </ac:task>\n`;
+    });
+    taskXml += '</ac:task-list>';
+
+    return taskXml;
+  }
+
+  private convertTable(node: Table): string {
+    if (node.children.length === 0) {
+      return '';
+    }
+
+    const rows: string[] = [];
+    let hasHeader = false;
+
+    for (let i = 0; i < node.children.length; i++) {
+      const rowNode = node.children[i] as TableRow;
+      const isHeader = i === 0;
+
+      const cells: string[] = [];
+      for (const cell of rowNode.children as TableCell[]) {
+        const cellContent = this.convertInlineNodes(cell.children);
+        const cellTag = isHeader ? 'th' : 'td';
+        cells.push(`<${cellTag}>${cellContent}</${cellTag}>`);
+      }
+
+      if (isHeader) {
+        hasHeader = true;
+      }
+      rows.push(`<tr>\n${cells.join('\n')}\n</tr>`);
+    }
+
+    const headerHtml = hasHeader ? rows[0] : '';
+    const bodyHtml = hasHeader ? rows.slice(1).join('\n') : rows.join('\n');
+
+    let tableHtml = '<table>\n';
+    if (headerHtml) {
+      tableHtml += `<thead>\n${headerHtml}\n</thead>\n`;
+    }
+    tableHtml += `<tbody>\n${bodyHtml}\n</tbody>\n`;
+    tableHtml += '</table>';
+
+    return tableHtml;
+  }
+
+  private convertHtml(node: Html): string {
+    return node.value;
+  }
+
+  private convertInlineNodes(nodes: PhrasingContent[]): string {
+    return nodes.map(node => this.convertInlineNode(node)).join('');
+  }
+
+  private convertInlineNode(node: PhrasingContent): string {
+    switch (node.type) {
+      case 'text':
+        return escapeXml(this.parser.stripEmojis((node as Text).value));
+
+      case 'strong':
+        return `<strong>${this.convertInlineNodes((node as Strong).children)}</strong>`;
+
+      case 'emphasis':
+        return `<em>${this.convertInlineNodes((node as Emphasis).children)}</em>`;
+
+      case 'inlineCode':
+        return `<code>${escapeXml(this.parser.stripEmojis((node as InlineCode).value))}</code>`;
+
+      case 'link': {
+        const link = node as Link;
+        const linkText = this.convertInlineNodes(link.children);
+        return `<a href="${escapeXmlAttr(link.url)}">${linkText}</a>`;
+      }
+
+      case 'image':
+        return this.convertImage(node as Image);
+
+      case 'break':
+        return '<br/>';
+
+      case 'delete':
+        return `<s>${this.convertInlineNodes((node as { children: PhrasingContent[] }).children)}</s>`;
+
+      default:
+        return '';
+    }
+  }
+
+  private convertImage(node: Image): string {
+    const alt = escapeXmlAttr(this.parser.stripEmojis(node.alt || ''));
+
+    const mappedValue = this.options.imageMapping?.[node.url];
+    if (mappedValue) {
+      if (mappedValue.startsWith('http')) {
+        return `<ac:image ac:alt="${alt}"><ri:url ri:value="${escapeXmlAttr(mappedValue)}" /></ac:image>`;
+      }
+      return `<ac:image ac:alt="${alt}"><ri:attachment ri:filename="${escapeXmlAttr(mappedValue)}" /></ac:image>`;
+    }
+
+    if (node.url.startsWith('http')) {
+      return `<ac:image ac:alt="${alt}"><ri:url ri:value="${escapeXmlAttr(node.url)}" /></ac:image>`;
+    }
+
+    const filename = node.url.split('/').pop()?.split('\\').pop() || node.url;
+    return `<ac:image ac:alt="${alt}"><ri:attachment ri:filename="${escapeXmlAttr(filename)}" /></ac:image>`;
+  }
+
+  private createInfoMacro(content: string): string {
+    return `<ac:structured-macro ac:name="info" ac:schema-version="1">
+  <ac:rich-text><p>${content}</p></ac:rich-text>
+</ac:structured-macro>`;
+  }
+
+  private createWarningMacro(content: string): string {
+    return `<ac:structured-macro ac:name="warning" ac:schema-version="1">
+  <ac:rich-text><p>${content}</p></ac:rich-text>
+</ac:structured-macro>`;
+  }
+
+  private createTipMacro(content: string): string {
+    return `<ac:structured-macro ac:name="tip" ac:schema-version="1">
+  <ac:rich-text><p>${content}</p></ac:rich-text>
+</ac:structured-macro>`;
+  }
+
+  private createNoteMacro(content: string): string {
+    return `<ac:structured-macro ac:name="note" ac:schema-version="1">
+  <ac:rich-text><p>${content}</p></ac:rich-text>
+</ac:structured-macro>`;
+  }
+}
