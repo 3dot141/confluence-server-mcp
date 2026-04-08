@@ -1,49 +1,94 @@
 ---
 name: confluence-assistant
-description: "Complete Confluence (KMS) operations assistant using MCP tools. Use for: searching pages, creating/updating pages, publishing Markdown with images and Mermaid diagrams, managing attachments, comments, and permissions. Triggers: 'Confluence/KMS', 'publish to', 'upload to', 'create page', 'update page', 'search Confluence', 'Confluence attachment', 'page permission'"
+description: "Complete Confluence (KMS) operations assistant using the confluence CLI. Use for: searching pages, creating/updating pages, publishing Markdown with images and Mermaid diagrams, managing attachments. Triggers: 'Confluence/KMS', 'publish to', 'upload to', 'create page', 'update page', 'search Confluence', 'Confluence attachment'"
 ---
 
 # Confluence Assistant
 
-All Confluence operations through MCP tools from `mcp-tools-layered`.
+All Confluence operations through the `confluence` CLI tool.
 
-## Quick Decision
+## Setup
 
-| User Says | Primary Tool |
-|-----------|-------------|
-| "Search/find pages" | `confluence_search_pages` |
-| "Get page content" | `confluence_get_page` |
-| "List spaces" | `confluence_list_spaces` |
-| "Create page" | `confluence_create_page` or `confluence_upsert_page` |
-| "Update/sync page" | `confluence_update_page` or `confluence_upsert_page` |
-| **"Publish markdown"** | See [Publishing Workflow](#publishing-markdown-workflow) |
-| "Upload file" | `confluence_upload_attachment` |
-| "Delete page" | `confluence_delete_page` |
-| "Add comment" | `confluence_add_comment` |
-| "Set permissions" | `confluence_set_page_restriction` |
+Requires environment variables (set in `.env` or shell):
 
-## Available Tools
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `CONF_BASE_URL` | Yes | Confluence base URL (e.g., `https://wiki.example.com`) |
+| `CONF_TOKEN` | Yes* | Personal Access Token |
+| `CONF_USERNAME` | Yes* | Username (Basic Auth alternative) |
+| `CONF_PASSWORD` | Yes* | API Token (Basic Auth alternative) |
+| `CONF_SPACE` | No | Default space key |
 
-**Query:** `confluence_list_spaces`, `confluence_search_pages`, `confluence_get_page`, `confluence_get_child_pages`, `confluence_get_page_history`
-
-**Pages:** `confluence_create_page`, `confluence_update_page`, `confluence_upsert_page`, `confluence_delete_page`
-
-**Publishing:** `confluence_publish_complete` (auto extracts images, renders Mermaid, converts Markdown)
-
-**Attachments:** `confluence_upload_attachment`, `confluence_get_page_attachments`
-
-**Comments:** `confluence_add_comment`, `confluence_get_page_comments`
-
-**Permissions:** `confluence_set_page_restriction`
-
-## CRITICAL Constraints
-
-1. **MUST get page before update**: Always call `confluence_get_page` before `confluence_update_page`
-2. **For Markdown publishing**: Follow the [Publishing Workflow](#publishing-markdown-workflow) - MUST ask user for intent confirmation
+\* Either `CONF_TOKEN` or `CONF_USERNAME` + `CONF_PASSWORD` is required.
 
 ---
 
-## Publishing Markdown Workflow
+## Level 1: Quick Decision
+
+| User Says | Command |
+|-----------|---------|
+| "List spaces" | `confluence list-spaces` |
+| "Search/find pages" | `confluence search "query"` |
+| "Get page content" | `confluence get-page <id-or-title>` |
+| "Create page" | `confluence create-page "Title"` |
+| "Update page" | `confluence update-page <id-or-title>` |
+| "Delete page" | `confluence delete-page <id>` |
+| **"Publish markdown"** | See [Level 3: Publishing Workflow](#level-3-publishing-markdown-workflow) |
+| "Upload file" | `confluence upload <file> --page <id>` |
+
+---
+
+## Level 2: Basic Commands
+
+### Query
+
+```bash
+# List all spaces
+confluence list-spaces [--type global|personal] [--json]
+
+# Search pages
+confluence search "query" [--space KEY] [--limit 25] [--json]
+
+# Get page by ID or title
+confluence get-page <idOrTitle> [--space KEY] [--json]
+```
+
+### Page CRUD
+
+```bash
+# Create
+confluence create-page "Page Title" --space KEY [--parent ID] [--file content.html]
+
+# Update (auto-fetches current version)
+confluence update-page <idOrTitle> [--space KEY] [--title "New Title"] [--file content.html]
+
+# Delete
+confluence delete-page <pageId>
+```
+
+### Publish Markdown
+
+```bash
+# Converts markdown → Confluence format, handles images + mermaid automatically
+confluence publish README.md --space KEY [--title "Custom Title"] [--parent ID]
+```
+
+### Upload Attachment
+
+```bash
+confluence upload ./diagram.png --page <pageId> [--filename custom-name.png]
+```
+
+### Global Flags
+
+| Flag | Description |
+|------|-------------|
+| `--json` | Output as JSON (for programmatic parsing) |
+| `--debug` | Enable debug logging (default off) |
+
+---
+
+## Level 3: Publishing Markdown Workflow
 
 **When user says "上传/同步/发布到 XX":**
 
@@ -65,11 +110,11 @@ All Confluence operations through MCP tools from `mcp-tools-layered`.
 
 ### Step 2: Check Page Existence
 
-```javascript
-const results = await confluence_search_pages({ space, query: title });
-const exists = results.length > 0;
-const pageId = exists ? results[0].id : null;
+```bash
+confluence search "页面标题" --space KEY --json
 ```
+
+Parse JSON output to determine if page exists and get its ID.
 
 ### Step 3: Ask User for Intent (MANDATORY)
 
@@ -88,44 +133,23 @@ const pageId = exists ? results[0].id : null;
 ### Step 4: Execute Based on User Choice
 
 #### Option A: Update Existing Page
-```javascript
-// User chose to update existing page
-await confluence_publish_complete({
-  pageId: "12345",           // Existing page ID
-  space: "Teams",
-  title: "项目规划",
-  markdown: content,
-  basePath: "/path/to/file"  // For resolving relative image paths
-});
+```bash
+confluence publish ./doc.md --space KEY --title "项目规划"
 ```
+`publish` 会自动检测同名页面并更新。
 
 #### Option B: Create Child Page
-```javascript
-// User chose to create as child
-// 1. Find parent page
-const parentResults = await confluence_search_pages({ space, query: parentTitle });
-const parentId = parentResults[0].id;
-
-// 2. Publish with parentId
-await confluence_publish_complete({
-  space: "Teams",
-  title: "子页面标题",       // Extracted from markdown
-  markdown: content,
-  basePath: "/path/to/file",
-  parentId: parentId         // Creates as child page
-});
+```bash
+# 1. 先查找父页面 ID
+confluence search "父页面标题" --space KEY --json
+# 2. 用 --parent 指定父页面
+confluence publish ./doc.md --space KEY --title "子页面标题" --parent <parentId>
 ```
 
 #### Option C: Create at Space Root
-```javascript
-// User chose to create at root
-await confluence_publish_complete({
-  space: "Teams",
-  title: "新页面标题",
-  markdown: content,
-  basePath: "/path/to/file"
-  // No parentId = creates at root
-});
+```bash
+# 不指定 --parent，默认创建到空间根目录
+confluence publish ./doc.md --space KEY --title "新页面标题"
 ```
 
 ### Intent Examples
@@ -137,48 +161,39 @@ await confluence_publish_complete({
 | "上传到 Teams/设计 目录下" | Yes | **ASK USER** → 选择更新或在该页面下创建子页面 |
 | "上传到 Teams/设计 目录下" | No | **ASK USER** → 父页面不存在，选择根目录创建或指定其他父页面 |
 
-### What `confluence_publish_complete` Handles
+### What `publish` Handles Automatically
 
 - Extracts local images from Markdown (`![alt](./path/to/image.png)`)
-- Renders Mermaid diagrams to images and uploads
+- Renders Mermaid diagrams to PNG and uploads as attachments
 - Converts Markdown to Confluence Storage Format
 - Creates new page OR updates existing (auto-detected by title)
-- Supports: tables, task lists, code blocks, blockquotes → macros
+- Supports: tables, task lists, code blocks, blockquotes → Confluence macros
 
 ---
 
-## Common Examples
+## Level 4: Common Workflows
 
-### Search and get page
-```javascript
-const { results } = await confluence_search_pages({ query: "roadmap", limit: 5 });
-const page = await confluence_get_page({ pageId: results[0].id });
+### Search then view page
+```bash
+confluence search "roadmap" --space DEV --json
+confluence get-page 12345 --json
 ```
 
-### Create page
-```javascript
-await confluence_create_page({
-  space: "DEV",
-  title: "Meeting Notes",
-  content: "<h1>Meeting Notes</h1><p></p>"
-});
+### Create page from HTML file
+```bash
+confluence create-page "Meeting Notes" --space DEV --file notes.html
 ```
 
-### Update page (MUST get first!)
-```javascript
-await confluence_get_page({ pageId: "12345" });  // Get version
-await confluence_update_page({
-  pageId: "12345",
-  content: "<h1>Updated</h1>..."
-});
+### Update page content
+```bash
+confluence update-page 12345 --file updated.html
+# or by title
+confluence update-page "Meeting Notes" --space DEV --file updated.html
 ```
 
-### Upload attachment
-```javascript
-await confluence_upload_attachment({
-  pageId: "12345",
-  filePath: "/path/to/file.pdf"
-});
+### Publish with debug logging
+```bash
+confluence publish README.md --space DEV --title "Project Docs" --debug
 ```
 
 ## References

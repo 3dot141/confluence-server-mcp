@@ -1,6 +1,28 @@
 # Troubleshooting Guide
 
-Common issues and solutions for Confluence operations.
+Common issues and solutions for the `confluence` CLI.
+
+## Configuration Issues
+
+### Missing Environment Variables
+
+**Symptoms:**
+```
+Error: Missing required environment variable: CONF_BASE_URL
+```
+
+**Solution:** Ensure required env vars are set:
+```bash
+export CONF_BASE_URL="https://wiki.example.com"
+export CONF_TOKEN="your-api-token"
+# or
+export CONF_USERNAME="user@example.com"
+export CONF_PASSWORD="your-api-token"
+```
+
+Tip: Use `.env` file in the project root for persistent configuration.
+
+---
 
 ## Page Operations
 
@@ -13,14 +35,14 @@ Error: Page with ID 12345 not found
 
 **Solutions:**
 
-1. **Verify page ID:**
-   ```javascript
-   const { results } = await confluence_search_pages({ query: "page title" });
+1. **Verify page exists by searching:**
+   ```bash
+   confluence search "page title" --space KEY --json
    ```
 
-2. **Search by title:**
-   ```javascript
-   const page = await confluence_get_page({ title: "Page Title", space: "DEV" });
+2. **Try by title instead of ID:**
+   ```bash
+   confluence get-page "Page Title" --space KEY
    ```
 
 ---
@@ -32,20 +54,9 @@ Error: Page with ID 12345 not found
 Error: Version conflict - page has been modified
 ```
 
-**Cause:** Attempted to update page without current version number.
+**Cause:** Page was modified between read and update.
 
-**Solution:** Always get page before updating:
-
-```javascript
-// CORRECT
-await confluence_get_page({ pageId: "12345" });
-await confluence_update_page({ pageId: "12345", content: "..." });
-
-// WRONG - Don't do this
-await confluence_update_page({ pageId: "12345", content: "..." });
-```
-
-**Alternative:** Use `confluence_publish_complete` or `confluence_upsert_page` which handle version automatically.
+**Solution:** The `update-page` and `publish` commands handle version automatically. If the error persists, retry the command — it will fetch the latest version.
 
 ---
 
@@ -54,8 +65,8 @@ await confluence_update_page({ pageId: "12345", content: "..." });
 **Solutions:**
 
 1. **Verify space access:**
-   ```javascript
-   const { spaces } = await confluence_list_spaces();
+   ```bash
+   confluence list-spaces --json
    ```
 
 2. **Contact space admin** to grant permissions.
@@ -64,11 +75,10 @@ await confluence_update_page({ pageId: "12345", content: "..." });
 
 ### "Space not found" Error
 
-**Solution:** List available spaces to get correct key:
+**Solution:** List available spaces to get the correct key:
 
-```javascript
-const { spaces } = await confluence_list_spaces();
-// spaces = [{ key: "DEV", name: "Development" }, ...]
+```bash
+confluence list-spaces
 ```
 
 Space keys are case-sensitive!
@@ -80,19 +90,14 @@ Space keys are case-sensitive!
 ### Images not displaying
 
 **Causes:**
-1. Wrong basePath provided
-2. File doesn't exist
+1. Markdown references relative paths that don't exist
+2. Running `publish` from a different directory than the markdown file
 
-**Solution:**
+**Solution:** Run publish from the directory containing the markdown, or use absolute paths in markdown:
 
-```javascript
-// Verify basePath points to directory containing markdown
-await confluence_publish_complete({
-  space: "Teams",
-  title: "My Doc",
-  markdown: content,
-  basePath: "/absolute/path/to/markdown/directory"
-});
+```bash
+cd /path/to/docs
+confluence publish README.md --space KEY
 ```
 
 ---
@@ -101,45 +106,21 @@ await confluence_publish_complete({
 
 **Cause:** Mermaid syntax error or unsupported diagram type.
 
-**Solution:**
+**Solutions:**
 - Verify Mermaid syntax at [mermaid.live](https://mermaid.live)
-- Try different theme: `mermaidTheme: "forest"`
+- Use `--debug` to see rendering details:
+  ```bash
+  confluence publish doc.md --space KEY --debug
+  ```
 
 ---
 
-## Connection Issues
+## Debugging
 
-### MCP Tools Not Available
+For any unexpected behavior, enable debug logging:
 
-**Symptoms:**
+```bash
+confluence <command> --debug
 ```
-Error: Tool confluence_search_pages not found
-```
 
-**Solutions:**
-
-1. **Check MCP config:**
-   ```bash
-   cat ~/.cursor/mcp.json
-   ```
-
-2. **Verify server starts:**
-   ```bash
-   cd /path/to/mcp-tools-layered
-   npm run mcp
-   ```
-
-3. **Restart Cursor completely** (Cmd+Q then reopen)
-
----
-
-## Performance Issues
-
-### Slow Page Updates
-
-**Cause:** Large content or many attachments.
-
-**Solutions:**
-
-1. **Compress images** before publishing
-2. **Split large documents** into multiple pages
+This outputs detailed request/response information to stderr.
