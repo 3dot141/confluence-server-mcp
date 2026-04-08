@@ -4,6 +4,7 @@ import { Command } from 'commander';
 import { loadConfig } from './config.js';
 import { registerSpacesCommand } from './commands/spaces.js';
 import { registerPageCommands } from './commands/pages.js';
+import { registerPublishCommand } from './commands/publish.js';
 
 const program = new Command();
 
@@ -22,6 +23,7 @@ program
 
 registerSpacesCommand(program);
 registerPageCommands(program);
+registerPublishCommand(program);
 
 program.parseAsync(process.argv).catch((err) => {
   console.error(`Error: ${err.message}`);
