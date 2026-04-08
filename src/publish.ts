@@ -4,6 +4,7 @@ import { RemarkMarkdownParser } from './markdown/parser.js';
 import { ASTMarkdownToConfluenceConverter } from './markdown/converter.js';
 import { ConfluenceApi } from './confluence-api.js';
 import { MermaidRenderer } from './markdown/mermaid.js';
+import { logger } from './logger.js';
 
 export interface PublishCompleteInput {
   pageId?: string;
@@ -47,6 +48,8 @@ export class PublishCompleteUseCase {
       throw new Error('Title is empty after removing emojis. Please provide a non-emoji title.');
     }
 
+    logger.info('Starting publish', { title: sanitizedTitle, space: input.space });
+
     // 1. Preprocess markdown
     let markdown = input.markdown;
     markdown = this.parser.preprocessObsidianSyntax(markdown);
@@ -56,6 +59,11 @@ export class PublishCompleteUseCase {
     // 2. Parse AST and extract resources
     const ast = this.parser.parse(markdown);
     const resources = this.parser.extractResources(ast);
+
+    logger.debug('Extracted resources', {
+      images: resources.images.length,
+      mermaids: resources.mermaids.length,
+    });
 
     // 3. Get or create page
     let pageId = input.pageId;
@@ -103,6 +111,11 @@ export class PublishCompleteUseCase {
       errors
     );
 
+    logger.debug('Resources processed', {
+      imagesUploaded: imageMap.size,
+      mermaidsRendered: mermaidMap.size,
+    });
+
     // 6. Convert markdown to Confluence with resource mappings
     const { storageFormat } = await this.converter.convertAsync(
       markdown,
@@ -118,6 +131,8 @@ export class PublishCompleteUseCase {
       content: storageFormat,
       version,
     });
+
+    logger.info('Page updated', { pageId, version: updatedPage.version.number });
 
     // 8. Build result
     const baseUrl = process.env.CONF_BASE_URL || '';
