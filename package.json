@@ -1,6 +1,6 @@
 {
   "name": "confluence-cli",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "Confluence CLI tool with Claude Code skill integration",
   "type": "module",
   "scripts": {
@@ -12,7 +12,9 @@
   "bin": {
     "confluence": "./dist/cli.js"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "dependencies": {
     "@mermaid-js/mermaid-cli": "^11.12.0",
     "axios": "^1.6.0",

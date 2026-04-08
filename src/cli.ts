@@ -13,7 +13,7 @@ const program = new Command();
 program
   .name('confluence')
   .description('Confluence CLI — manage pages, publish markdown, search')
-  .version('3.0.0')
+  .version('3.1.0')
   .option('--json', 'Output as JSON', false)
   .option('--debug', 'Enable debug logging', false)
   .hook('preAction', () => {
