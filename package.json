@@ -1,26 +1,23 @@
 {
-  "name": "confluence-mcp-server",
-  "version": "2.0.8",
-  "description": "Layered architecture MCP server for Confluence with Markdown publishing",
+  "name": "confluence-cli",
+  "version": "3.0.0",
+  "description": "Confluence CLI tool with Claude Code skill integration",
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/main.js",
-    "mcp": "npm run -s build && node dist/main.js",
+    "start": "node dist/cli.js",
+    "dev": "npm run build && node dist/cli.js",
     "test": "vitest"
   },
   "bin": {
-    "confluence-mcp": "./dist/main.js"
+    "confluence": "./dist/cli.js"
   },
-  "files": [
-    "dist"
-  ],
+  "files": ["dist"],
   "dependencies": {
     "@mermaid-js/mermaid-cli": "^11.12.0",
-    "@modelcontextprotocol/sdk": "1.25.1",
     "axios": "^1.6.0",
+    "commander": "^13.0.0",
     "dotenv": "^16.4.0",
-    "express": "^5.2.1",
     "form-data": "^4.0.5",
     "puppeteer": "^23.11.1",
     "remark-frontmatter": "^5.0.0",
@@ -31,7 +28,6 @@
     "unist-util-visit": "^5.1.0"
   },
   "devDependencies": {
-    "@types/express": "^5.0.6",
     "@types/mdast": "^4.0.4",
     "@types/node": "^22.10.2",
     "typescript": "^5.7.2",
